@@ -27,10 +27,11 @@ export function RoomGrid({ rooms, onRoomClick }: RoomGridProps) {
   // Group rooms by floor
   const roomsByFloor = rooms.reduce(
     (acc, room) => {
-      if (!acc[room.floor]) {
-        acc[room.floor] = [];
+      const floor = room.floor ?? 1;
+      if (!acc[floor]) {
+        acc[floor] = [];
       }
-      acc[room.floor].push(room);
+      acc[floor].push(room);
       return acc;
     },
     {} as Record<number, RoomWithType[]>
@@ -99,7 +100,9 @@ export function RoomGrid({ rooms, onRoomClick }: RoomGridProps) {
                             </div>
                             <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                               <div>Type: {room.roomType.name}</div>
-                              <div>${room.roomType.pricePerNight}/night</div>
+                              <div>Giờ: {new Intl.NumberFormat("vi-VN").format(room.roomType.hourlyPrice)}đ</div>
+                              <div>Ngày: {new Intl.NumberFormat("vi-VN").format(room.roomType.dayPrice)}đ</div>
+                              <div>Đêm: {new Intl.NumberFormat("vi-VN").format(room.roomType.nightPrice)}đ</div>
                               <div>Capacity: {room.roomType.capacity} guests</div>
                             </div>
                           </div>

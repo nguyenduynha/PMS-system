@@ -13,6 +13,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,8 +25,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useState } from "react";
-import { BarChart3 } from "lucide-react";
-import { Wallet } from "lucide-react";
 
 const navigation = [
   { name: "Tổng quan", href: "/", icon: LayoutDashboard },
@@ -32,14 +32,13 @@ const navigation = [
   { name: "Đặt phòng", href: "/bookings", icon: CalendarDays },
   { name: "Dịch vụ", href: "/services", icon: Utensils },
   { name: "Hóa đơn", href: "/invoices", icon: Receipt },
-  { name: "Tài khoản và phân quyền", href: "/users", icon: Users },
+  { name: "Tài khoản", href: "/users", icon: Users },
   { name: "Thu chi", href: "/finance", icon: Wallet },
   { name: "Thống kê", href: "/reports", icon: BarChart3 },
-
 ];
 
 const bottomNavigation = [
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Cài đặt", href: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -50,79 +49,96 @@ export function AppSidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
-          collapsed ? "w-16" : "w-64"
+          "sticky left-0 top-0 flex h-screen flex-col border-r border-slate-200 bg-white text-slate-700 shadow-sm transition-all duration-300",
+          collapsed ? "w-20" : "w-72"
         )}
       >
-        {/* Logo Section */}
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Hotel className="size-5" />
+        <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200">
+            <Hotel className="size-6" />
           </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">
-                 PMS Khách Sạn
-              </span>
 
-                <span className="text-xs text-muted-foreground">
-  Hotel Management
-</span>
+          {!collapsed && (
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold text-slate-900">
+                PMS Khách Sạn
+              </h1>
+              <p className="truncate text-xs text-slate-500">
+                Hotel Management System
+              </p>
             </div>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            const NavLink = (
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
+
+            const content = (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-100"
+                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                 )}
               >
-                <item.icon className={cn("size-5 shrink-0", isActive && "text-primary")} />
-                {!collapsed && <span>{item.name}</span>}
+                <item.icon
+                  className={cn(
+                    "size-5 shrink-0 transition-colors",
+                    isActive
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-blue-600"
+                  )}
+                />
+
+                {!collapsed && <span className="truncate">{item.name}</span>}
               </Link>
             );
 
             if (collapsed) {
               return (
                 <Tooltip key={item.name}>
-                  <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={10}>
+                  <TooltipTrigger asChild>{content}</TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={12}>
                     {item.name}
                   </TooltipContent>
                 </Tooltip>
               );
             }
 
-            return NavLink;
+            return content;
           })}
         </nav>
 
-        {/* Bottom Navigation */}
-        <div className="border-t border-sidebar-border p-2">
+        <div className="border-t border-slate-200 p-3">
           {bottomNavigation.map((item) => {
             const isActive = pathname === item.href;
-            const NavLink = (
+
+            const content = (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-100"
+                    : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                 )}
               >
-                <item.icon className="size-5 shrink-0" />
+                <item.icon
+                  className={cn(
+                    "size-5 shrink-0",
+                    isActive
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-blue-600"
+                  )}
+                />
+
                 {!collapsed && <span>{item.name}</span>}
               </Link>
             );
@@ -130,25 +146,24 @@ export function AppSidebar() {
             if (collapsed) {
               return (
                 <Tooltip key={item.name}>
-                  <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={10}>
+                  <TooltipTrigger asChild>{content}</TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={12}>
                     {item.name}
                   </TooltipContent>
                 </Tooltip>
               );
             }
 
-            return NavLink;
+            return content;
           })}
 
-          {/* Collapse Toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "mt-2 w-full justify-center text-muted-foreground hover:text-foreground",
-              !collapsed && "justify-start px-3"
+              "mt-3 h-10 w-full rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+              collapsed ? "justify-center" : "justify-start px-3"
             )}
           >
             {collapsed ? (
@@ -156,7 +171,7 @@ export function AppSidebar() {
             ) : (
               <>
                 <ChevronLeft className="size-4" />
-                <span className="ml-2">Collapse</span>
+                <span className="ml-2">Thu gọn</span>
               </>
             )}
           </Button>

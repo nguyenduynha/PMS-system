@@ -25,15 +25,19 @@ model User {
 }
 
 model RoomType {
-  id            BigInt   @id @default(autoincrement())
-  name          String   @db.VarChar(255)
-  pricePerNight Decimal  @map("price_per_night")
-  capacity      Int
-  description   String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           BigInt   @id @default(autoincrement())
+  name         String   @db.VarChar(255)
 
-  rooms Room[]
+  hourlyPrice Decimal @default(80000) @map("hourly_price")
+dayPrice    Decimal @default(400000) @map("day_price")
+nightPrice  Decimal @default(300000) @map("night_price")
+
+  capacity     Int
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  rooms        Room[]
 
   @@map("room_types")
 }
@@ -47,7 +51,6 @@ model Room {
   note       String?
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-
   roomType    RoomType            @relation(fields: [roomTypeId], references: [id])
   bookings    Booking[]
   maintenance MaintenanceRecord[]
@@ -62,6 +65,8 @@ model Booking {
   customerName  String   @map("customer_name") @db.VarChar(255)
   customerPhone String   @map("customer_phone") @db.VarChar(20)
   customerEmail String?  @map("customer_email") @db.VarChar(255)
+  guestCount    Int      @default(1) @map("guest_count")
+  priceType     String   @default("night") @map("price_type")
   checkInDate   DateTime @map("check_in_date") @db.Date
   checkOutDate  DateTime @map("check_out_date") @db.Date
   totalAmount   Decimal  @default(0) @map("total_amount")

@@ -7,22 +7,33 @@ export type BookingStatus = "PENDING" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OU
 // Service Category Types
 export type ServiceCategory = "FOOD" | "SPA" | "LAUNDRY" | "TRANSPORT" | "OTHER";
 
+// Price Type
+export type PriceType = "hourly" | "day" | "night";
+
 // Room Type Entity
 export interface RoomType {
   id: string;
   name: string;
-  pricePerNight: number;
+  hourlyPrice: number;
+  dayPrice: number;
+  nightPrice: number;
   capacity: number;
+  description?: string | null;
   amenities: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Room Entity
 export interface Room {
   id: string;
   roomNumber: string;
   status: RoomStatus;
   roomTypeId: string;
-  floor: number;
+  floor: number | null;
+  note?: string | null;
+  roomType?: RoomType;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Booking Entity
@@ -33,9 +44,13 @@ export interface Booking {
   checkOutDate: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string | null;
+  guestCount: number;
   status: BookingStatus;
   totalAmount: number;
+  priceType: PriceType;
   createdAt: string;
+  bookingSource?: string;
 }
 
 // Service Entity
@@ -43,7 +58,22 @@ export interface Service {
   id: string;
   name: string;
   price: number;
+  unit?: string;
+  status: string;
   category: ServiceCategory;
+}
+
+// BookingService (dịch vụ đã dùng trong booking)
+export interface BookingServiceItem {
+  id: string;
+  bookingId: string;
+  serviceId: string;
+  serviceName: string;
+  serviceUnit: string;
+  quantity: number;
+  price: number;       // đơn giá tại thời điểm thêm
+  totalAmount: number; // price × quantity
+  createdAt: string;
 }
 
 // Invoice Entity
@@ -51,11 +81,25 @@ export interface Invoice {
   id: string;
   invoiceNumber: string;
   bookingId: string;
-  totalAmount: number;
-  tax: number;
+  subTotal: number;
+  taxAmount: number;
   discount: number;
+  totalAmount: number;
+  status: string;
+  paymentMethod?: string;
   createdAt: string;
-  paidAt?: string;
+  updatedAt?: string;
+}
+
+// Invoice summary for folio display
+export interface InvoiceSummary {
+  roomAmount: number;
+  serviceTotal: number;
+  subTotal: number;
+  taxRate: number;
+  taxAmount: number;
+  discount: number;
+  totalAmount: number;
 }
 
 // Maintenance Record Types
@@ -67,7 +111,7 @@ export interface MaintenanceRecord {
   description: string;
   startDate: string;
   endDate?: string;
-  repairCost: number; // BigDecimal format stored as number
+  repairCost: number;
   status: MaintenanceStatus;
   staffId: string;
 }
@@ -117,4 +161,6 @@ export interface MaintenanceRecordWithDetails extends MaintenanceRecord {
 export interface BookingFolio extends Booking {
   room: RoomWithType;
   guests: Guest[];
+  bookingServices: BookingServiceItem[];
+  invoice?: Invoice | null;
 }
