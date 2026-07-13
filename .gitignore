@@ -1,16 +1,33 @@
-# v0 sandbox internal files
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
-.snowflake/
-.v0-trash/
-.vercel/
+# Dependency directories
+node_modules/
+/*/node_modules/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# TypeScript build output
+backend/dist/
 
 # Environment variables
-.env*.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
 
-# Common ignores
-node_modules
-.next/
+# OS metadata
 .DS_Store
-/lib/generated/prisma
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

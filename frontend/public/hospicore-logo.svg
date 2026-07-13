@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" role="img" aria-labelledby="title desc">
+  <title id="title">HospiCore</title>
+  <desc id="desc">Modern Hospitality Solutions</desc>
+  <defs>
+    <linearGradient id="blue" x1="290" y1="35" x2="645" y2="370" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#15539a"/>
+      <stop offset="1" stop-color="#2874db"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(300 10) scale(1.32)">
+    <path d="M25 88 126 25l78 48" fill="none" stroke="url(#blue)" stroke-width="17" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M27 88v143M52 83v148M52 138h71M123 106v125" fill="none" stroke="url(#blue)" stroke-width="17" stroke-linejoin="miter"/>
+    <path d="M217 101c-15-21-37-32-64-32-45 0-76 33-76 79s31 79 76 79c28 0 51-12 67-35l-24-19c-10 14-23 21-40 21-25 0-42-18-42-46s17-46 42-46c16 0 29 6 39 19z" fill="url(#blue)"/>
+    <circle cx="89" cy="173" r="10" fill="#174f94"/>
+    <path d="m84 179-5 25h20l-5-25z" fill="#174f94"/>
+  </g>
+  <text x="460" y="425" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="500" letter-spacing="-3" fill="#2369c7">Hospi<tspan fill="#174f94" font-weight="700">Core</tspan></text>
+  <text x="460" y="485" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="400" letter-spacing="1" fill="#526172">Modern Hospitality Solutions</text>
+</svg>
