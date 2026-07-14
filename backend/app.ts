@@ -16,7 +16,26 @@ import hotelProfileRoutes from './routes/hotel-profile.route';
 const app: Application = express();
 
 // 1. Middlewares toàn cục
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://pms-system-iota.vercel.app",
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked: ${origin}`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/public', express.static('public'));
@@ -41,6 +60,11 @@ app.get('/', (req, res) => {
   res.send('Server is running...');
 });
 
-
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "PMS API is running",
+  });
+});
 
 export default app;
