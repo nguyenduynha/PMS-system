@@ -6,6 +6,8 @@ const router = Router();
 
 router.get("/", authMiddleware, requirePermission("ROOM_VIEW"), RoomController.getRooms);
 router.get("/types", authMiddleware, requirePermission("ROOM_VIEW"), RoomController.getRoomTypes);
+router.get("/housekeeping", authMiddleware, requirePermission("HOUSEKEEPING_VIEW"), RoomController.getRooms);
+router.put("/:id/housekeeping", authMiddleware, requirePermission("HOUSEKEEPING_UPDATE"), RoomController.updateHousekeeping);
 
 // Thêm và xóa phòng chỉ dành cho SUPERADMIN
 router.post(

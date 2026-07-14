@@ -16,6 +16,8 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { id: "ROOM_UPDATE", module: "ROOM", action: "UPDATE", name: "Sửa thông tin phòng", description: "Cập nhật thông tin phòng" },
   { id: "ROOM_DELETE", module: "ROOM", action: "DELETE", name: "Xóa phòng", description: "Xóa phòng khỏi hệ thống" },
   { id: "ROOM_STATUS", module: "ROOM", action: "STATUS", name: "Cập nhật trạng thái phòng", description: "Đổi trạng thái sử dụng và dọn phòng" },
+  { id: "HOUSEKEEPING_VIEW", module: "HOUSEKEEPING", action: "VIEW", name: "Xem Buồng phòng", description: "Xem danh sách công việc vệ sinh phòng" },
+  { id: "HOUSEKEEPING_UPDATE", module: "HOUSEKEEPING", action: "UPDATE", name: "Cập nhật vệ sinh", description: "Bắt đầu và hoàn tất dọn phòng" },
   { id: "ROOM_PRICE", module: "ROOM", action: "PRICE", name: "Cập nhật giá phòng", description: "Thay đổi giá phòng và loại phòng" },
   { id: "ROOM_TRANSFER", module: "ROOM", action: "TRANSFER", name: "Chuyển phòng", description: "Chuyển khách sang phòng khác" },
   { id: "ROOM_LOCK", module: "ROOM", action: "LOCK", name: "Khóa/Mở phòng", description: "Khóa hoặc mở phòng" },
@@ -72,6 +74,7 @@ export const ALL_PERMISSION_IDS = PERMISSION_CATALOG.map((permission) => permiss
 const LEGACY_MODULES: Record<string, string[]> = {
   DASHBOARD: ["DASHBOARD"],
   ROOMS: ["ROOM"],
+  HOUSEKEEPING: ["HOUSEKEEPING"],
   BOOKINGS: ["BOOKING"],
   CUSTOMERS: ["CUSTOMER"],
   SERVICES: ["SERVICE"],
@@ -101,11 +104,12 @@ export function getDefaultPermissions(role: string): string[] {
   }
   if (normalizedRole === "STAFF") {
     return [
-      "DASHBOARD_VIEW", "DASHBOARD_ROOM_STATS", "ROOM_VIEW", "ROOM_STATUS",
+      "DASHBOARD_VIEW", "DASHBOARD_ROOM_STATS", "ROOM_VIEW", "ROOM_STATUS", "HOUSEKEEPING_VIEW", "HOUSEKEEPING_UPDATE",
       "BOOKING_VIEW", "BOOKING_CREATE", "BOOKING_UPDATE", "BOOKING_CHECK_IN", "BOOKING_CHECK_OUT", "BOOKING_EXTEND", "BOOKING_TRANSFER",
       "CUSTOMER_VIEW", "CUSTOMER_CREATE", "CUSTOMER_UPDATE", "CUSTOMER_HISTORY",
       "SERVICE_VIEW", "INVOICE_VIEW", "INVOICE_CREATE", "INVOICE_PAYMENT", "INVOICE_PRINT", "INVENTORY_VIEW", "INVENTORY_TRANSACTION",
     ];
   }
+  if (normalizedRole === "HOUSEKEEPING") return ["HOUSEKEEPING_VIEW", "HOUSEKEEPING_UPDATE"];
   return [];
 }

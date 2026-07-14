@@ -187,9 +187,10 @@ export const InventoryService = {
     price: number;
     reason?: string;
     referenceId?: string;
+    supplierName?: string;
     createdById?: string;
   }) => {
-    const { itemId, quantity, price, reason, referenceId, createdById } = data;
+    const { itemId, quantity, price, reason, referenceId, supplierName, createdById } = data;
     const cleanItemId = BigInt(itemId);
 
     if (quantity <= 0) {
@@ -228,6 +229,7 @@ export const InventoryService = {
           totalAmount,
           reason: reason || "Nhập hàng định kỳ",
           referenceId: referenceId || null,
+          supplierName: supplierName?.trim() || null,
           createdById: createdById ? BigInt(createdById) : null
         },
         include: {
@@ -259,7 +261,7 @@ export const InventoryService = {
           type: "EXPENSE",
           category: "Vật tư",
           amount: totalAmount,
-          description: `[Nhập kho] Nhập sản phẩm: ${item.name} (SL: ${quantity} ${item.unit}) - Lý do: ${reason || "Nhập hàng định kỳ"}`,
+          description: `[Nhập kho] ${supplierName ? `Mua từ ${supplierName} - ` : ""}${item.name} (SL: ${quantity} ${item.unit}) - Lý do: ${reason || "Nhập hàng định kỳ"}`,
           date: new Date(),
           createdById: creatorId
         }

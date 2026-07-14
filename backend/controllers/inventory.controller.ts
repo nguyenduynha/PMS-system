@@ -70,7 +70,7 @@ export const InventoryController = {
   // 6. Nhập kho
   importStock: async (req: AuthRequest, res: Response) => {
     try {
-      const { itemId, quantity, price, reason, referenceId } = req.body;
+      const { itemId, quantity, price, reason, referenceId, supplierName } = req.body;
       const createdById = req.user?.id; // Lấy ID người làm lệnh nhập từ token
 
       const newTx = await InventoryService.importStock({
@@ -79,6 +79,7 @@ export const InventoryController = {
         price: Number(price),
         reason,
         referenceId,
+        supplierName,
         createdById
       });
 

@@ -147,7 +147,8 @@ interface RoomsTabProps {
   setViewMode: (val: "grid" | "list" | "timeline") => void;
   formatCurrency: (val: number) => string;
   onRoomClick: (room: RoomWithType) => void;
-  onTimelineCreate: (roomId: string, checkInDate: Date, checkOutDate: Date) => void;
+  onTimelineEmptySlotClick: (roomId: string, dateTime: Date) => void;
+  onTimelineBookingClick: (bookingId: string) => void;
   onSaveRoom: (roomData: any) => void; 
   onDeleteRoom: (roomId: string) => void;
   searchQuery: string;
@@ -160,7 +161,7 @@ export function RoomsTab({
   allRoomsCount,
   floorFilter, setFloorFilter, typeFilter, setTypeFilter,
   filterOptions, floors, roomTypes, amenities, viewMode, setViewMode,
-  formatCurrency, onRoomClick, onTimelineCreate, onSaveRoom, onDeleteRoom,
+  formatCurrency, onRoomClick, onTimelineEmptySlotClick, onTimelineBookingClick, onSaveRoom, onDeleteRoom,
   searchQuery, setSearchQuery
 }: RoomsTabProps) {
   const { user } = useAuth();
@@ -196,7 +197,7 @@ export function RoomsTab({
       if (activeBooking) {
         if (activeBooking.status === "CHECKED_IN") {
           displayStatus = "OCCUPIED";
-        } else if (activeBooking.status === "PENDING" || activeBooking.status === "CONFIRMED") {
+        } else if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status)) {
           if (r.status === "AVAILABLE" || r.status === "OCCUPIED") {
             isReserved = true;
             displayStatus = "RESERVED";
@@ -234,7 +235,7 @@ export function RoomsTab({
   }, {});
 
   const timelineBookings = filteredRooms.flatMap((room: any) =>
-    (room.bookings || []).map((booking: any) => ({ ...booking, roomId: room.id })),
+    (room.calendarBookings || room.bookings || []).map((booking: any) => ({ ...booking, roomId: room.id })),
   );
 
   const openForm = (room?: RoomWithType) => {
@@ -522,11 +523,8 @@ export function RoomsTab({
             rooms={filteredRooms}
             loading={false}
             canCreate={canCreateBooking}
-            onCreate={onTimelineCreate}
-            onBookingClick={(booking) => {
-              const room = rooms.find((item) => item.id === booking.roomId);
-              if (room) onRoomClick(room);
-            }}
+            onEmptySlotClick={onTimelineEmptySlotClick}
+            onBookingClick={onTimelineBookingClick}
           />
         </Card>
       ) : viewMode === "list" ? (
@@ -554,7 +552,7 @@ export function RoomsTab({
                 if (activeBooking) {
                   if (activeBooking.status === "CHECKED_IN") {
                     displayStatus = "OCCUPIED";
-                  } else if (activeBooking.status === "PENDING" || activeBooking.status === "CONFIRMED") {
+                  } else if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status)) {
                     isReserved = true;
                     displayStatus = "RESERVED";
                   }
@@ -676,7 +674,7 @@ export function RoomsTab({
                     let isReserved = false;
 
                     if (activeBooking?.status === "CHECKED_IN") displayStatus = "OCCUPIED";
-                    if (["PENDING", "CONFIRMED"].includes(activeBooking?.status)) {
+                    if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking?.status)) {
                       displayStatus = "RESERVED";
                       isReserved = true;
                     }

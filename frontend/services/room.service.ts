@@ -30,6 +30,21 @@ export const RoomAPI = {
     return res.json();
   },
 
+  getHousekeepingRooms: async () => {
+    const res = await fetch(`${API_URL}/housekeeping`, { headers: getHeaders() });
+    if (!res.ok) throw new Error("Không thể tải danh sách buồng phòng");
+    return res.json();
+  },
+
+  updateHousekeepingStatus: async (id: string, status: "DIRTY" | "CLEANING" | "AVAILABLE") => {
+    const res = await fetch(`${API_URL}/${id}/housekeeping`, {
+      method: "PUT", headers: getHeaders(), body: JSON.stringify({ status }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Không thể cập nhật trạng thái vệ sinh");
+    return result.data;
+  },
+
   // 2. Tạo phòng mới
   createRoom: async (data: any) => {
     const res = await fetch(API_URL, {

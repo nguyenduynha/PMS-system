@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Position {
@@ -315,6 +316,7 @@ model InventoryTransaction {
   totalAmount Decimal  @map("total_amount") @db.Decimal(12, 2)
   reason      String?  @db.VarChar(255)
   referenceId String?  @map("reference_id") @db.VarChar(100)
+  supplierName String? @map("supplier_name") @db.VarChar(255)
   date        DateTime @default(now())
   createdById BigInt?  @map("created_by_id")
 

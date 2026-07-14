@@ -53,6 +53,8 @@ function formatDate(dateStr: string | Date) {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
+const getCurrentBooking = (room: any) => room?.currentBooking || null;
+
 export default function RoomsPage() {
   const { user } = useAuth();
   const canCheckIn = hasPermission(user, "BOOKING_CHECK_IN");
@@ -63,6 +65,8 @@ export default function RoomsPage() {
   const [loading, setLoading] = useState(true);
 
   const [viewMode, setViewMode] = useState<"grid" | "list" | "timeline">("grid");
+  const [selectedTimelineBooking, setSelectedTimelineBooking] = useState<any>(null);
+  const [timelineCheckInSubmitting, setTimelineCheckInSubmitting] = useState(false);
   const preserveTimelineRange = useRef(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [floorFilter, setFloorFilter] = useState<string>("all");
@@ -190,7 +194,7 @@ export default function RoomsPage() {
 
   // --- BỘ LỌC PHÒNG ---
   const filteredRooms = rooms.filter((room) => {
-    const activeBooking = room.bookings?.[0];
+    const activeBooking = getCurrentBooking(room);
     
     let displayStatus = room.status;
     let isReserved = false;
@@ -198,7 +202,7 @@ export default function RoomsPage() {
     if (activeBooking) {
       if (activeBooking.status === "CHECKED_IN") {
         displayStatus = "OCCUPIED";
-      } else if (activeBooking.status === "PENDING" || activeBooking.status === "CONFIRMED") {
+      } else if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status)) {
         if (room.status === "AVAILABLE" || room.status === "OCCUPIED") {
           isReserved = true;
           displayStatus = "RESERVED";
@@ -209,7 +213,7 @@ export default function RoomsPage() {
     if (statusFilter !== "all") {
       if (statusFilter === "PENDING_ARRIVAL") {
         const isPendingArrival = activeBooking && 
-          (activeBooking.status === "PENDING" || activeBooking.status === "CONFIRMED") && 
+          ["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status) && 
           new Date(activeBooking.checkInDate).toDateString() === new Date().toDateString();
         if (!isPendingArrival) return false;
       } else if (statusFilter === "PENDING_DEPARTURE") {
@@ -304,8 +308,8 @@ export default function RoomsPage() {
   };
 
   const handleDirectCheckIn = async (room: RoomWithType) => {
-    const booking = room.bookings?.[0];
-    if (!booking || !["PENDING", "CONFIRMED"].includes(booking.status)) return false;
+    const booking = getCurrentBooking(room);
+    if (!booking || !["BOOKED", "PENDING", "CONFIRMED"].includes(booking.status)) return false;
     if (!canCheckIn) {
       toast.error("Bạn không có quyền nhận phòng");
       return true;
@@ -316,7 +320,7 @@ export default function RoomsPage() {
   };
 
   const submitDirectCheckIn = async () => {
-    const booking = directCheckInRoom?.bookings?.[0];
+    const booking = getCurrentBooking(directCheckInRoom);
     if (!directCheckInRoom || !booking) return;
     setDirectCheckInSubmitting(true);
     try {
@@ -333,7 +337,7 @@ export default function RoomsPage() {
   };
 
   const handleRoomClick = async (room: RoomWithType) => {
-    const activeBooking = room.bookings?.[0];
+    const activeBooking = getCurrentBooking(room);
     if (!activeBooking) {
       if (room.status === "AVAILABLE") {
         setQuickBookingRoom(room);
@@ -363,7 +367,7 @@ export default function RoomsPage() {
       return;
     }
 
-    if (["PENDING", "CONFIRMED"].includes(activeBooking.status)) {
+    if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status)) {
       await handleDirectCheckIn(room);
       return;
     }
@@ -413,9 +417,12 @@ export default function RoomsPage() {
     }
   };
 
-  const handleRoomTimelineCreate = (roomId: string, checkInDate: Date, checkOutDate: Date) => {
+  const handleTimelineEmptySlotClick = (roomId: string, checkInDate: Date) => {
     const room = rooms.find((item) => item.id === roomId);
-    if (!room || room.status !== "AVAILABLE") return;
+    if (!room || room.status === "MAINTENANCE") return;
+
+    const checkOutDate = new Date(checkInDate);
+    checkOutDate.setDate(checkOutDate.getDate() + 1);
 
     preserveTimelineRange.current = true;
     setQuickBookingRoom(room);
@@ -433,6 +440,28 @@ export default function RoomsPage() {
     });
     setCheckInImmediately(false);
     setIsQuickBookingOpen(true);
+  };
+
+  const handleTimelineBookingClick = (bookingId: string) => {
+    const booking = rooms
+      .flatMap((room: any) => room.calendarBookings || room.bookings || [])
+      .find((item: any) => item.id === bookingId);
+    if (booking) setSelectedTimelineBooking(booking);
+  };
+
+  const handleTimelineCheckIn = async () => {
+    if (!selectedTimelineBooking) return;
+    try {
+      setTimelineCheckInSubmitting(true);
+      await BookingAPI.updateBookingStatus(selectedTimelineBooking.id, "CHECKED_IN");
+      toast.success("Check-in thành công");
+      setSelectedTimelineBooking(null);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể Check-in");
+    } finally {
+      setTimelineCheckInSubmitting(false);
+    }
   };
 
   const handleAddService = async () => {
@@ -782,7 +811,8 @@ export default function RoomsPage() {
                   setViewMode={setViewMode}
                   formatCurrency={formatCurrency}
                   onRoomClick={handleRoomClick}
-                  onTimelineCreate={handleRoomTimelineCreate}
+                  onTimelineEmptySlotClick={handleTimelineEmptySlotClick}
+                  onTimelineBookingClick={handleTimelineBookingClick}
                   onSaveRoom={handleSaveRoom} 
                   onDeleteRoom={handleDeleteRoom}
                   searchQuery={searchQuery}
@@ -812,6 +842,36 @@ export default function RoomsPage() {
           )}
         </main>
       </div>
+
+      <Dialog open={!!selectedTimelineBooking} onOpenChange={(open) => !open && setSelectedTimelineBooking(null)}>
+        <DialogContent variant="right" className="sm:max-w-[500px]">
+          <DialogHeader className="border-b p-6 pr-14">
+            <DialogTitle>Chi tiết đặt phòng</DialogTitle>
+            <DialogDescription>Bấm vào booking để xem khách; vùng trống mới dùng để tạo booking.</DialogDescription>
+          </DialogHeader>
+          {selectedTimelineBooking && <div className="space-y-4 p-6">
+            <div className="rounded-2xl border bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Khách lưu trú</p>
+              <p className="mt-1 text-xl font-bold">{selectedTimelineBooking.customerName}</p>
+              <p className="mt-1 text-sm text-slate-600">{selectedTimelineBooking.customerPhone || "Chưa có số điện thoại"}</p>
+            </div>
+            <div className="divide-y rounded-2xl border px-4 text-sm">
+              <div className="flex justify-between py-3"><span className="text-muted-foreground">Mã booking</span><strong>#{selectedTimelineBooking.id}</strong></div>
+              <div className="flex justify-between py-3"><span className="text-muted-foreground">Nhận phòng</span><strong>{formatDate(selectedTimelineBooking.checkInDate)}</strong></div>
+              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trả phòng</span><strong>{formatDate(selectedTimelineBooking.checkOutDate)}</strong></div>
+              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trạng thái</span><Badge>{selectedTimelineBooking.status}</Badge></div>
+            </div>
+          </div>}
+          <DialogFooter className="border-t bg-muted/20 p-5">
+            <Button variant="outline" onClick={() => setSelectedTimelineBooking(null)}>Đóng</Button>
+            {selectedTimelineBooking && ["BOOKED", "CONFIRMED", "EXPECTED_ARRIVAL"].includes(selectedTimelineBooking.status) && canCheckIn && (
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleTimelineCheckIn} disabled={timelineCheckInSubmitting}>
+                {timelineCheckInSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}Check-in
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Quản lý Operations phòng */}
       <Dialog open={isServiceDialogOpen} onOpenChange={setIsServiceDialogOpen}>

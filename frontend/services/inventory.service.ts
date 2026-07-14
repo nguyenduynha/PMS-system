@@ -114,6 +114,7 @@ export const InventoryAPI = {
     price: number;
     reason?: string;
     referenceId?: string;
+    supplierName?: string;
   }) => {
     const res = await fetch(`${API_URL}/import`, {
       method: "POST",

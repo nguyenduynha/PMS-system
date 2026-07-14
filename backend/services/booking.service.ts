@@ -3,6 +3,32 @@ import { Prisma } from "@prisma/client";
 import { InvoiceService } from "./invoice.service";
 import { PricingService } from "./pricing.service";
 
+// Các trạng thái vẫn giữ chỗ trên lịch. PENDING được giữ để tương thích dữ liệu
+// hiện tại của hệ thống; BOOKED hỗ trợ dữ liệu PMS chuẩn/được import.
+const OCCUPYING_BOOKING_STATUSES = ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "CHECKED_IN"];
+
+const findOverlappingBooking = async ({
+  roomId,
+  checkIn,
+  checkOut,
+  excludeBookingId,
+}: {
+  roomId: bigint;
+  checkIn: Date;
+  checkOut: Date;
+  excludeBookingId?: bigint;
+}) => prisma.booking.findFirst({
+  where: {
+    roomId,
+    ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
+    status: { in: OCCUPYING_BOOKING_STATUSES },
+    // [checkIn, checkOut): hai booking chạm đầu/cuối không bị coi là trùng.
+    checkInDate: { lt: checkOut },
+    checkOutDate: { gt: checkIn },
+  },
+  select: { id: true, checkInDate: true, checkOutDate: true, customerName: true },
+});
+
 export const BookingService = {
   // 1. Lấy danh sách đặt phòng
   getAllBookings: async () => {
@@ -83,21 +109,17 @@ export const BookingService = {
     // Tính toán số đêm lưu trú
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
+
+    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) {
+      throw new Error("Ngày nhận phòng hoặc trả phòng không hợp lệ");
+    }
+    if (checkOut <= checkIn) {
+      throw new Error("Thời gian trả phòng phải sau thời gian nhận phòng");
+    }
     
     // Kiểm tra xem phòng có bị trùng lịch trong khoảng thời gian này không
-    const conflictingBooking = await prisma.booking.findFirst({
-      where: {
-        roomId: BigInt(roomId),
-        status: {
-          in: ["PENDING", "CONFIRMED", "CHECKED_IN"]
-        },
-        checkInDate: {
-          lt: checkOut
-        },
-        checkOutDate: {
-          gt: checkIn
-        }
-      }
+    const conflictingBooking = await findOverlappingBooking({
+      roomId: BigInt(roomId), checkIn, checkOut,
     });
 
     if (conflictingBooking) {
@@ -196,18 +218,32 @@ export const BookingService = {
 
   // 3. Cập nhật trạng thái đặt phòng
   updateBookingStatus: async (id: string, status: string) => {
+    const bookingId = BigInt(id);
     // Tìm đặt phòng hiện tại
     const booking = await prisma.booking.findUnique({
-      where: { id: BigInt(id) }
+      where: { id: bookingId }
     });
 
     if (!booking) {
       throw new Error("Đặt phòng không tồn tại");
     }
 
+    if (status === "CHECKED_IN") {
+      const conflictingBooking = await findOverlappingBooking({
+        roomId: booking.roomId,
+        checkIn: booking.checkInDate,
+        checkOut: booking.checkOutDate,
+        excludeBookingId: bookingId,
+      });
+
+      if (conflictingBooking) {
+        throw new Error("Không thể nhận phòng: có booking khác bị trùng thời gian với booking này");
+      }
+    }
+
     // Cập nhật trạng thái đặt phòng
     const updatedBooking = await prisma.booking.update({
-      where: { id: BigInt(id) },
+      where: { id: bookingId },
       data: { status },
       include: {
         room: {
@@ -219,36 +255,34 @@ export const BookingService = {
     });
 
     // Nghiệp vụ thay đổi trạng thái phòng tương ứng
-    let roomStatus = "AVAILABLE";
+    let roomStatus: "OCCUPIED" | "DIRTY" | null = null;
     if (status === "CHECKED_IN") {
       roomStatus = "OCCUPIED";
     } else if (status === "CHECKED_OUT") {
       roomStatus = "DIRTY"; // Khách trả phòng -> phòng chuyển sang trạng thái Chưa dọn dẹp
-    } else if (status === "CANCELLED") {
-      roomStatus = "AVAILABLE";
-    } else if (status === "CONFIRMED") {
-      roomStatus = "AVAILABLE"; // hoặc tùy chỉnh theo mong muốn
     }
 
-    // Cập nhật trạng thái phòng thực tế trong DB (nếu không đang có bảo trì đang hoạt động)
-    const activeMaintenance = await prisma.maintenanceRecord.findFirst({
-      where: {
-        roomId: booking.roomId,
-        status: { in: ["PENDING", "IN_PROGRESS", "WAITING_PARTS"] }
-      }
-    });
+    // BOOKED/PENDING/CONFIRMED/CANCELLED chỉ thay đổi lịch, không được phép
+    // ghi đè trạng thái vận hành hiện tại của phòng.
+    if (roomStatus) {
+      const activeMaintenance = await prisma.maintenanceRecord.findFirst({
+        where: {
+          roomId: booking.roomId,
+          status: { in: ["PENDING", "IN_PROGRESS", "WAITING_PARTS"] }
+        }
+      });
 
-    if (!activeMaintenance) {
-      await prisma.room.update({
-        where: { id: booking.roomId },
-        data: { status: roomStatus }
-      });
-    } else {
-      // Nếu đang bảo trì, đảm bảo phòng vẫn được giữ ở trạng thái MAINTENANCE trong DB
-      await prisma.room.update({
-        where: { id: booking.roomId },
-        data: { status: "MAINTENANCE" }
-      });
+      if (!activeMaintenance) {
+        await prisma.room.update({
+          where: { id: booking.roomId },
+          data: { status: roomStatus }
+        });
+      } else {
+        await prisma.room.update({
+          where: { id: booking.roomId },
+          data: { status: "MAINTENANCE" }
+        });
+      }
     }
 
     return {
@@ -424,20 +458,8 @@ export const BookingService = {
     }
 
     // Kiểm tra xem phòng có bị trùng lịch trong khoảng thời gian mới hay không (trừ chính booking này)
-    const conflictingBooking = await prisma.booking.findFirst({
-      where: {
-        roomId: booking.roomId,
-        id: { not: bookingId },
-        status: {
-          in: ["PENDING", "CONFIRMED", "CHECKED_IN"]
-        },
-        checkInDate: {
-          lt: newCheckOut
-        },
-        checkOutDate: {
-          gt: checkIn
-        }
-      }
+    const conflictingBooking = await findOverlappingBooking({
+      roomId: booking.roomId, checkIn, checkOut: newCheckOut, excludeBookingId: bookingId,
     });
 
     if (conflictingBooking) {
@@ -509,20 +531,8 @@ export const BookingService = {
     const checkOut = new Date(booking.checkOutDate);
 
     // Kiểm tra xem phòng mới có bị trùng lịch trong khoảng thời gian này hay không (trừ chính booking này nếu đổi lại cùng phòng cũ)
-    const conflictingBooking = await prisma.booking.findFirst({
-      where: {
-        roomId: targetRoomId,
-        id: { not: bookingId },
-        status: {
-          in: ["PENDING", "CONFIRMED", "CHECKED_IN"]
-        },
-        checkInDate: {
-          lt: checkOut
-        },
-        checkOutDate: {
-          gt: checkIn
-        }
-      }
+    const conflictingBooking = await findOverlappingBooking({
+      roomId: targetRoomId, checkIn, checkOut, excludeBookingId: bookingId,
     });
 
     if (conflictingBooking) {

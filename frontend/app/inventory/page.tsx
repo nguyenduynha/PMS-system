@@ -117,6 +117,7 @@ export default function InventoryPage() {
   const [importPrice, setImportPrice] = useState<string>("");
   const [importReason, setImportReason] = useState<string>("Nhập hàng định kỳ");
   const [importReferenceId, setImportReferenceId] = useState<string>("");
+  const [importSupplierName, setImportSupplierName] = useState<string>("");
 
   // Form xuất kho
   const [exportItemId, setExportItemId] = useState<string>("");
@@ -278,7 +279,8 @@ export default function InventoryPage() {
         quantity: Number(importQuantity),
         price: Number(importPrice),
         reason: importReason,
-        referenceId: importReferenceId || undefined
+        referenceId: importReferenceId || undefined,
+        supplierName: importSupplierName || undefined
       });
 
       toast.success("Lập phiếu nhập kho thành công và đã đồng bộ chi phí thu chi!");
@@ -290,6 +292,7 @@ export default function InventoryPage() {
       setImportPrice("");
       setImportReason("Nhập hàng định kỳ");
       setImportReferenceId("");
+      setImportSupplierName("");
       
       // Refresh dữ liệu
       fetchItems();
@@ -998,6 +1001,7 @@ export default function InventoryPage() {
               setImportPrice("");
               setImportReason("Nhập hàng định kỳ");
               setImportReferenceId("");
+              setImportSupplierName("");
             }
           }}>
             <DialogContent className="sm:max-w-[500px]">
@@ -1071,10 +1075,20 @@ export default function InventoryPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label htmlFor="import-ref" className="font-semibold">Mã số hóa đơn mua / Nhà cung cấp</Label>
+                    <Label htmlFor="import-supplier" className="font-semibold">Nhà cung cấp</Label>
+                    <Input
+                      id="import-supplier"
+                      placeholder="Tên công ty / nhà phân phối"
+                      value={importSupplierName}
+                      onChange={(e) => setImportSupplierName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="import-ref" className="font-semibold">Số hóa đơn / mã đơn mua</Label>
                     <Input
                       id="import-ref"
-                      placeholder="Mã đối chiếu hoặc tên NCC (Không bắt buộc)"
+                      placeholder="Ví dụ: PO-2026-001 hoặc HD000123"
                       value={importReferenceId}
                       onChange={(e) => setImportReferenceId(e.target.value)}
                     />

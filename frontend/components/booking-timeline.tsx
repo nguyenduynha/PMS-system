@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -45,6 +45,7 @@ type DragSelection = {
   roomId: string;
   startIndex: number;
   endIndex: number;
+  dateTime: Date;
 };
 
 type BookingTimelineProps = {
@@ -52,11 +53,11 @@ type BookingTimelineProps = {
   rooms: TimelineRoom[];
   loading: boolean;
   canCreate?: boolean;
-  onCreate: (roomId: string, checkInDate: Date, checkOutDate: Date) => void;
-  onBookingClick: (booking: TimelineBooking) => void;
+  onEmptySlotClick: (roomId: string, dateTime: Date) => void;
+  onBookingClick: (bookingId: string) => void;
 };
 
-const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT"];
+const ACTIVE_STATUSES = ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "CHECKED_IN"];
 
 function startOfDay(value: Date) {
   const date = new Date(value);
@@ -102,14 +103,18 @@ function capitalize(value: string) {
 
 function getStatusStyle(status: string) {
   if (status === "PENDING") return "border-amber-300 bg-amber-500 text-white";
+  if (status === "BOOKED") return "border-indigo-300 bg-indigo-500 text-white";
   if (status === "CONFIRMED") return "border-blue-400 bg-blue-600 text-white";
+  if (status === "EXPECTED_ARRIVAL") return "border-cyan-400 bg-cyan-600 text-white";
   if (status === "CHECKED_IN") return "border-emerald-400 bg-emerald-600 text-white";
   return "border-slate-300 bg-slate-500 text-white";
 }
 
 function getStatusLabel(status: string) {
   if (status === "PENDING") return "Chờ xác nhận";
+  if (status === "BOOKED") return "Đã đặt";
   if (status === "CONFIRMED") return "Đã xác nhận";
+  if (status === "EXPECTED_ARRIVAL") return "Sắp đến";
   if (status === "CHECKED_IN") return "Đang ở";
   return "Đã trả phòng";
 }
@@ -127,12 +132,19 @@ export function BookingTimeline({
   rooms,
   loading,
   canCreate = true,
-  onCreate,
+  onEmptySlotClick,
   onBookingClick,
 }: BookingTimelineProps) {
   const [view, setView] = useState<TimelineView>("week");
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [selection, setSelection] = useState<DragSelection | null>(null);
+  const [hoverTime, setHoverTime] = useState<{ roomId: string; value: Date; left: number } | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const slots = useMemo<TimelineSlot[]>(() => {
     const today = new Date();
@@ -214,6 +226,15 @@ export function BookingTimeline({
     return Math.max(0, Math.min(slots.length - 1, Math.floor((clientX - rect.left) / cellWidth)));
   };
 
+  const getDateTimeAtPointer = (clientX: number, element: HTMLDivElement) => {
+    const rect = element.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(0.999999, (clientX - rect.left) / timelineWidth));
+    const value = new Date(rangeStart.getTime() + ratio * (rangeEnd.getTime() - rangeStart.getTime()));
+    if (view === "day") value.setMinutes(value.getMinutes() < 30 ? 0 : 30, 0, 0);
+    else value.setHours(14, 0, 0, 0);
+    return { value, left: ratio * timelineWidth };
+  };
+
   const finishSelection = () => {
     if (!selection) return;
     const firstIndex = Math.min(selection.startIndex, selection.endIndex);
@@ -226,7 +247,7 @@ export function BookingTimeline({
       end.setHours(12, 0, 0, 0);
     }
 
-    onCreate(selection.roomId, start, end);
+    onEmptySlotClick(selection.roomId, selection.startIndex === selection.endIndex ? selection.dateTime : start);
     setSelection(null);
   };
 
@@ -322,6 +343,16 @@ export function BookingTimeline({
             </div>
           </div>
 
+          {view === "day" && isSameDay(rangeStart, now) && (() => {
+            const currentLeft = ((now.getTime() - rangeStart.getTime()) / (rangeEnd.getTime() - rangeStart.getTime())) * timelineWidth;
+            return <div className="pointer-events-none sticky top-16 z-30 h-0" style={{ marginLeft: 200 }}>
+              <div className="absolute top-0 z-30 h-[2000px] w-0.5 bg-rose-500" style={{ left: currentLeft }} />
+              <div className="absolute -top-5 z-40 -translate-x-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white shadow" style={{ left: currentLeft }}>
+                Hiện tại: {now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>;
+          })()}
+
           {rooms.length === 0 ? (
             <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
               Chưa có phòng để hiển thị.
@@ -334,14 +365,15 @@ export function BookingTimeline({
                 const bookingEnd = new Date(booking.checkOutDate);
                 return bookingStart < rangeEnd && bookingEnd > rangeStart;
               });
-              const isBlocked = room.status === "MAINTENANCE" || room.status === "DIRTY";
+              // DIRTY là trạng thái vận hành hiện tại, không phải khóa bán phòng tương lai.
+              const isBlocked = room.status === "MAINTENANCE";
               const roomSelection = selection?.roomId === room.id ? selection : null;
               const selectionStart = roomSelection ? Math.min(roomSelection.startIndex, roomSelection.endIndex) : 0;
               const selectionLength = roomSelection ? Math.abs(roomSelection.endIndex - roomSelection.startIndex) + 1 : 0;
 
               return (
-                <div key={room.id} className="flex border-b last:border-b-0">
-                  <div className="sticky left-0 z-20 flex h-[70px] w-[200px] shrink-0 items-center justify-between gap-2 border-r bg-background px-4 shadow-[3px_0_6px_-5px_rgba(0,0,0,0.35)]">
+                <div key={room.id} className="flex border-b border-slate-100 bg-white transition-colors hover:bg-sky-50/40 last:border-b-0 dark:border-slate-800 dark:bg-slate-950">
+                  <div className="sticky left-0 z-20 m-1.5 flex h-[58px] w-[188px] shrink-0 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                     <div className="min-w-0">
                       <p className="font-semibold">Phòng {room.roomNumber}</p>
                       <p className="truncate text-xs text-muted-foreground">{room.roomType?.name || "Chưa phân loại"}</p>
@@ -352,38 +384,50 @@ export function BookingTimeline({
                   </div>
 
                   <div
-                    className={cn("relative h-[70px] touch-none", isBlocked || !canCreate ? "cursor-default" : "cursor-crosshair")}
+                    className={cn("relative h-[70px] touch-none overflow-hidden rounded-xl", isBlocked || !canCreate ? "cursor-default" : "cursor-crosshair")}
                     style={{ width: timelineWidth }}
                     onPointerDown={(event) => {
                       if (isBlocked || !canCreate || event.button !== 0) return;
                       const index = getSlotIndex(event.clientX, event.currentTarget);
-                      setSelection({ roomId: room.id, startIndex: index, endIndex: index });
+                      const point = getDateTimeAtPointer(event.clientX, event.currentTarget);
+                      setSelection({ roomId: room.id, startIndex: index, endIndex: index, dateTime: point.value });
                     }}
                     onPointerMove={(event) => {
+                      const point = getDateTimeAtPointer(event.clientX, event.currentTarget);
+                      setHoverTime({ roomId: room.id, ...point });
                       if (!selection || selection.roomId !== room.id || event.buttons !== 1) return;
                       const index = getSlotIndex(event.clientX, event.currentTarget);
                       if (index !== selection.endIndex) setSelection({ ...selection, endIndex: index });
                     }}
                     onPointerUp={finishSelection}
                     onPointerCancel={() => setSelection(null)}
+                    onPointerLeave={() => setHoverTime(null)}
                   >
                     <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${slots.length}, ${cellWidth}px)` }}>
                       {slots.map((slot) => (
                         <div
                           key={slot.start.toISOString()}
                           className={cn(
-                            "border-r",
+                            "border-r border-slate-200 dark:border-slate-700",
                             slot.isWeekend && "bg-muted/30",
                             slot.isToday && "bg-primary/5",
                             isBlocked && "bg-zinc-200/50 dark:bg-zinc-800/50",
                           )}
-                        />
+                        >
+                          {view === "day" && <div className="h-full w-1/2 border-r border-dashed border-slate-200 dark:border-slate-800" />}
+                        </div>
                       ))}
                     </div>
 
+                    {hoverTime?.roomId === room.id && (
+                      <div className="pointer-events-none absolute top-1 z-40 -translate-x-1/2 rounded-md bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white shadow-lg" style={{ left: hoverTime.left }}>
+                        {hoverTime.value.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    )}
+
                     {roomSelection && (
                       <div
-                        className="pointer-events-none absolute inset-y-2 z-10 rounded-md border-2 border-dashed border-primary bg-primary/15"
+                        className="pointer-events-none absolute inset-y-2 z-10 rounded-xl border-2 border-dashed border-primary bg-primary/15 shadow-sm"
                         style={{ left: selectionStart * cellWidth + 2, width: selectionLength * cellWidth - 4 }}
                       />
                     )}
@@ -400,12 +444,13 @@ export function BookingTimeline({
                           key={booking.id}
                           type="button"
                           className={cn(
-                            "absolute inset-y-2 z-20 overflow-hidden rounded-md border px-2 text-left text-xs shadow-sm transition hover:z-30 hover:brightness-105 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "absolute inset-y-2 z-20 overflow-hidden rounded-xl border px-3 text-left text-xs shadow-sm transition hover:z-30 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             getStatusStyle(booking.status),
                           )}
                           style={{ left: left + 2, width: Math.max(16, width - 4) }}
                           onPointerDown={(event) => event.stopPropagation()}
-                          onClick={() => onBookingClick(booking)}
+                          onPointerUp={(event) => event.stopPropagation()}
+                          onClick={(event) => { event.stopPropagation(); onBookingClick(booking.id); }}
                           title={`${booking.customerName} - ${getStatusLabel(booking.status)}`}
                         >
                           <span className="block truncate font-semibold">{booking.customerName}</span>

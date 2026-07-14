@@ -20,7 +20,7 @@ export const RoomService = {
         bookings: {
           where: {
             status: {
-              in: ["CHECKED_IN", "CONFIRMED", "PENDING"]
+              in: ["CHECKED_IN", "EXPECTED_ARRIVAL", "CONFIRMED", "BOOKED", "PENDING"]
             }
           },
           orderBy: {
@@ -42,25 +42,37 @@ export const RoomService = {
       },
     });
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     return rooms.map(room => {
-      // 1. Tìm đặt phòng đang check-in
+      // CHECKED_IN là trạng thái vận hành thực tế. Nếu chưa check-in, chỉ coi
+      // booking là hiện hành khi thời điểm đang xem nằm trong [check-in, check-out).
+      // Booking tương lai tuyệt đối không làm Room Map hiện tại thành RESERVED.
       let activeBooking = room.bookings.find(b => b.status === "CHECKED_IN");
 
-      // 2. Nếu không có khách đang ở, tìm đặt trước (CONFIRMED/PENDING) chưa hết hạn
+      // Điều kiện nửa mở cũng đảm bảo booking kế tiếp bắt đầu đúng lúc booking
+      // trước trả phòng không bị coi là trùng.
       if (!activeBooking) {
         activeBooking = room.bookings.find(b => {
+          const checkIn = new Date(b.checkInDate);
           const checkOut = new Date(b.checkOutDate);
-          return checkOut >= todayStart;
+          return checkIn <= now && now < checkOut;
         });
       }
 
-      const activeBookingsList = activeBooking ? [activeBooking] : [];
+      const serializeBooking = (b: typeof room.bookings[number]) => ({
+        ...b,
+        id: b.id.toString(),
+        roomId: b.roomId.toString(),
+        userId: b.userId ? b.userId.toString() : null,
+        customerId: b.customerId ? b.customerId.toString() : null,
+      });
 
       return {
         ...room,
+        // RESERVED/BOOKED là trạng thái lịch được tính động, không phải trạng
+        // thái vận hành được lưu lâu dài trên bản ghi phòng.
+        status: ["RESERVED", "BOOKED"].includes(room.status) ? "AVAILABLE" : room.status,
         id: room.id.toString(),
         roomTypeId: `rt-${room.roomTypeId.toString()}`, // Định dạng lại giống mock frontend ("rt-1")
         amenities: room.amenities || [], // Tiện nghi riêng biệt của phòng
@@ -81,14 +93,11 @@ export const RoomService = {
           priceOvernightHoliday: Number(room.roomType.priceOvernightHoliday || 0),
           amenities: room.roomType.amenities || []
         },
-        // Chỉ trả về đặt phòng đang hoạt động thực tế
-        bookings: activeBookingsList.map(b => ({
-          ...b,
-          id: b.id.toString(),
-          roomId: b.roomId.toString(),
-          userId: b.userId ? b.userId.toString() : null,
-          customerId: b.customerId ? b.customerId.toString() : null,
-        })),
+        // `bookings` giữ tương thích cho các thao tác phòng hiện tại; lịch đầy
+        // đủ nằm riêng ở `calendarBookings` để booking tương lai không làm sai Room Map.
+        bookings: activeBooking ? [serializeBooking(activeBooking)] : [],
+        calendarBookings: room.bookings.map(serializeBooking),
+        currentBooking: activeBooking ? serializeBooking(activeBooking) : null,
         maintenance: room.maintenance.map(m => ({
           ...m,
           id: m.id.toString(),
@@ -119,6 +128,13 @@ export const RoomService = {
       priceOvernightHoliday: Number(rt.priceOvernightHoliday || 0),
       amenities: rt.amenities || []
     }));
+  },
+
+  // Chỉ cập nhật trạng thái vận hành; không đụng tới loại phòng, giá hay booking.
+  updateOperationalStatus: async (id: string, status: string) => {
+    const cleanId = BigInt(id.replace("r-", ""));
+    const updated = await prisma.room.update({ where: { id: cleanId }, data: { status } });
+    return { ...updated, id: updated.id.toString(), roomTypeId: `rt-${updated.roomTypeId.toString()}` };
   },
 
   // 2. Tạo phòng mới

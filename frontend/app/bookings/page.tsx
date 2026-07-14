@@ -56,6 +56,7 @@ function formatDate(dateStr: string) {
 
 function getStatusLabel(status: string) {
   if (status === "PENDING") return "Chờ xác nhận";
+  if (status === "BOOKED") return "Đã đặt";
   if (status === "CONFIRMED") return "Đã xác nhận";
   if (status === "CHECKED_IN") return "Đã nhận phòng";
   if (status === "CHECKED_OUT") return "Đã trả phòng";
@@ -65,6 +66,7 @@ function getStatusLabel(status: string) {
 
 function getStatusClass(status: string) {
   if (status === "PENDING") return "bg-amber-100 text-amber-700";
+  if (status === "BOOKED") return "bg-indigo-100 text-indigo-700";
   if (status === "CONFIRMED") return "bg-blue-100 text-blue-700";
   if (status === "CHECKED_IN") return "bg-green-100 text-green-700";
   if (status === "CHECKED_OUT") return "bg-gray-100 text-gray-700";
@@ -187,10 +189,12 @@ export default function BookingsPage() {
       const checkOut = new Date(formData.checkOutDate);
       if (checkOut > checkIn) {
         const isStillAvailable = roomsList.some((room) => {
-          if (room.id !== formData.roomId || room.status === "MAINTENANCE" || room.status === "DIRTY") return false;
+          // Phòng chưa dọn chỉ chặn nhận phòng ngay, không chặn một đặt phòng tương lai.
+          // Việc phòng có trống hay không được quyết định bằng khoảng ngày bên dưới.
+          if (room.id !== formData.roomId || room.status === "MAINTENANCE") return false;
           
           const hasOverlap = bookingsList.some((booking) => {
-            const isActiveBooking = ["PENDING", "CONFIRMED", "CHECKED_IN"].includes(booking.status);
+            const isActiveBooking = ["BOOKED", "PENDING", "CONFIRMED", "CHECKED_IN"].includes(booking.status);
             if (!isActiveBooking || booking.roomId !== room.id) return false;
             
             const bCheckIn = new Date(booking.checkInDate);
@@ -455,14 +459,15 @@ export default function BookingsPage() {
     }
 
     return roomsList.filter((room) => {
-      // 1. Nếu phòng đang bảo trì hoặc chưa dọn dẹp thì không cho đặt
-      if (room.status === "MAINTENANCE" || room.status === "DIRTY") {
+      // Phòng DIRTY vẫn có thể nhận đặt trước cho ngày khác; bộ phận buồng phòng
+      // sẽ hoàn tất vệ sinh trước lúc khách đến. Chỉ bảo trì mới khóa lịch bán.
+      if (room.status === "MAINTENANCE") {
         return false;
       }
 
       // 2. Lọc các phòng bị trùng lịch đặt phòng
       const hasOverlap = bookingsList.some((booking) => {
-        const isActiveBooking = ["PENDING", "CONFIRMED", "CHECKED_IN"].includes(booking.status);
+        const isActiveBooking = ["BOOKED", "PENDING", "CONFIRMED", "CHECKED_IN"].includes(booking.status);
         if (!isActiveBooking || booking.roomId !== room.id) {
           return false;
         }
@@ -685,7 +690,7 @@ export default function BookingsPage() {
                                 Xem
                               </Button>
 
-                              {canCheckIn && booking.status === "PENDING" && (
+                              {canCheckIn && ["BOOKED", "PENDING", "CONFIRMED"].includes(booking.status) && (
                                 <Button
                                   variant="outline"
                                   size="sm"

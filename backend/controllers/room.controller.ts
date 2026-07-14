@@ -49,6 +49,20 @@ export const RoomController = {
     }
   },
 
+  updateHousekeeping: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const status = String(req.body.status || "").toUpperCase();
+      if (!["DIRTY", "CLEANING", "AVAILABLE"].includes(status)) {
+        return res.status(400).json({ message: "Trạng thái buồng phòng không hợp lệ" });
+      }
+      const updatedRoom = await RoomService.updateOperationalStatus(id, status);
+      res.json({ message: status === "AVAILABLE" ? "Phòng đã sẵn sàng bán" : "Đã cập nhật công việc buồng phòng", data: updatedRoom });
+    } catch (error: any) {
+      res.status(400).json({ message: "Lỗi cập nhật buồng phòng: " + error.message });
+    }
+  },
+
   // 4. Xóa phòng
   delete: async (req: Request, res: Response) => {
     try {
