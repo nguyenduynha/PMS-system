@@ -43,7 +43,7 @@ export default function DashboardPage() {
       const [statsData, roomsData, bookingsData] = await Promise.all([
         DashboardAPI.getStats(),
         RoomAPI.getRooms(),
-        BookingAPI.getBookings(),
+        BookingAPI.getBookings({ limit: 10 }),
       ]);
       setStats(statsData);
       setRooms(roomsData);

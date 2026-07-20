@@ -32,7 +32,7 @@ const findOverlappingBooking = async ({
 
 export const BookingService = {
   // 1. Lấy danh sách đặt phòng
-  getAllBookings: async () => {
+  getAllBookings: async (limit?: number) => {
     await BookingPolicyService.syncNoShowsIfDue();
     const bookings = await prisma.booking.findMany({
       include: {
@@ -50,6 +50,7 @@ export const BookingService = {
         bookingServices: { include: { service: true } },
       },
       orderBy: { createdAt: 'desc' },
+      ...(limit ? { take: limit } : {}),
     });
 
     return bookings.map(b => ({

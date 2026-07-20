@@ -6,7 +6,11 @@ export const BookingController = {
   // 1. Lấy danh sách đặt phòng
   getBookings: async (req: Request, res: Response) => {
     try {
-      const data = await BookingService.getAllBookings();
+      const requestedLimit = Number(req.query.limit);
+      const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 100)
+        : undefined;
+      const data = await BookingService.getAllBookings(limit);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ message: "Lỗi khi lấy danh sách đặt phòng: " + error.message });

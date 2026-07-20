@@ -33,8 +33,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+  let apiOrigin: string | null = null
+  try {
+    apiOrigin = apiBaseUrl ? new URL(apiBaseUrl).origin : null
+  } catch {
+    apiOrigin = null
+  }
+
   return (
     <html lang="vi" className="bg-background" suppressHydrationWarning>
+      <head>
+        {apiOrigin && <link rel="dns-prefetch" href={apiOrigin} />}
+        {apiOrigin && <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />}
+      </head>
       <body
         className="font-sans antialiased selection:bg-blue-200 selection:text-blue-950"
         suppressHydrationWarning

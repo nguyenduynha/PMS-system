@@ -18,8 +18,9 @@ const toIsoDateTime = (value: unknown) => {
 
 export const BookingAPI = {
   // 1. Lấy danh sách đặt phòng
-  getBookings: async () => {
-    const res = await fetch(API_URL, { headers: getHeaders() });
+  getBookings: async (options?: { limit?: number }) => {
+    const url = options?.limit ? `${API_URL}?limit=${options.limit}` : API_URL;
+    const res = await fetch(url, { headers: getHeaders() });
     if (!res.ok) {
       throw new Error("Không thể tải danh sách đặt phòng");
     }
