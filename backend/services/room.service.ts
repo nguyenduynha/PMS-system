@@ -1,5 +1,6 @@
 import prisma from "../config/prisma";
 import { Prisma } from "@prisma/client";
+import { BookingPolicyService, HOLDING_BOOKING_STATUSES } from "./booking-policy.service";
 
 // Hàm làm sạch roomTypeId từ frontend (ví dụ "rt-1" -> 1)
 const cleanRoomTypeId = (typeId: string | number): bigint => {
@@ -13,6 +14,7 @@ const cleanRoomTypeId = (typeId: string | number): bigint => {
 export const RoomService = {
   // 1. Lấy danh sách phòng (kèm theo đặt phòng đang checked-in và bảo trì đang diễn ra)
   getAllRooms: async () => {
+    await BookingPolicyService.syncNoShowsIfDue();
     const rooms = await prisma.room.findMany({
       include: {
         roomType: true,
@@ -20,7 +22,7 @@ export const RoomService = {
         bookings: {
           where: {
             status: {
-              in: ["CHECKED_IN", "EXPECTED_ARRIVAL", "CONFIRMED", "BOOKED", "PENDING"]
+              in: HOLDING_BOOKING_STATUSES
             }
           },
           orderBy: {
@@ -48,7 +50,7 @@ export const RoomService = {
       // CHECKED_IN là trạng thái vận hành thực tế. Nếu chưa check-in, chỉ coi
       // booking là hiện hành khi thời điểm đang xem nằm trong [check-in, check-out).
       // Booking tương lai tuyệt đối không làm Room Map hiện tại thành RESERVED.
-      let activeBooking = room.bookings.find(b => b.status === "CHECKED_IN");
+      let activeBooking = room.bookings.find(b => ["CHECKED_IN", "NO_SHOW"].includes(b.status));
 
       // Điều kiện nửa mở cũng đảm bảo booking kế tiếp bắt đầu đúng lúc booking
       // trước trả phòng không bị coi là trùng.
@@ -56,7 +58,7 @@ export const RoomService = {
         activeBooking = room.bookings.find(b => {
           const checkIn = new Date(b.checkInDate);
           const checkOut = new Date(b.checkOutDate);
-          return checkIn <= now && now < checkOut;
+          return HOLDING_BOOKING_STATUSES.includes(b.status) && checkIn <= now && now < checkOut;
         });
       }
 

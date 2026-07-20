@@ -162,6 +162,9 @@ model Booking {
   invoice         Invoice?
 
   @@index([checkInDate])
+  @@index([status])
+  @@index([status, checkInDate])
+  @@index([createdAt])
   @@index([roomId, checkInDate, checkOutDate])
   @@map("bookings")
 }
@@ -259,6 +262,7 @@ model MaintenanceRecord {
   room  Room  @relation(fields: [roomId], references: [id])
   staff User? @relation(fields: [staffId], references: [id])
 
+  @@index([status, updatedAt])
   @@map("maintenance_records")
 }
 
@@ -276,6 +280,8 @@ model FinanceTransaction {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([date])
+  @@index([type, date])
   @@map("finance_transactions")
 }
 

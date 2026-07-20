@@ -9,6 +9,13 @@ const getHeaders = () => ({
     : {}),
 });
 
+const toIsoDateTime = (value: unknown) => {
+  if (typeof value !== "string" || !value) return value;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
 export const BookingAPI = {
   // 1. Lấy danh sách đặt phòng
   getBookings: async () => {
@@ -21,10 +28,15 @@ export const BookingAPI = {
 
   // 2. Tạo đặt phòng mới
   createBooking: async (data: any) => {
+    const payload = {
+      ...data,
+      checkInDate: toIsoDateTime(data.checkInDate),
+      checkOutDate: toIsoDateTime(data.checkOutDate),
+    };
     const res = await fetch(API_URL, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (!res.ok) {
@@ -88,7 +100,7 @@ export const BookingAPI = {
     const res = await fetch(`${API_URL}/${id}/extend`, {
       method: "PUT",
       headers: getHeaders(),
-      body: JSON.stringify({ checkOutDate }),
+      body: JSON.stringify({ checkOutDate: toIsoDateTime(checkOutDate) }),
     });
     const result = await res.json();
     if (!res.ok) {

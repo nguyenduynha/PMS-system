@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { API_BASE_URL } from "@/lib/app-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DoorOpen, Wrench, Wifi, Loader2, Plus, Trash2, ConciergeBell, Receipt, Calendar, DollarSign, AlertTriangle, LogIn } from "lucide-react";
+import { DoorOpen, Wrench, Wifi, Loader2, Plus, Trash2, ConciergeBell, Receipt, Calendar, DollarSign, AlertTriangle, LogIn, LogOut } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import {
   amenities as initialAmenities,
 } from "@/lib/mock-data";
 import type { RoomWithType, MaintenanceRecordWithDetails, Amenity } from "@/lib/types";
+import { getBookingStatusConfig, getOverdueLabel } from "@/lib/booking-status";
 
 import { RoomsTab } from "./rooms/rooms-tab"; 
 import { MaintenanceTab } from "./maintenance/maintenance-tab";
@@ -58,6 +59,8 @@ const getCurrentBooking = (room: any) => room?.currentBooking || null;
 export default function RoomsPage() {
   const { user } = useAuth();
   const canCheckIn = hasPermission(user, "BOOKING_CHECK_IN");
+  const canCheckOut = hasPermission(user, "BOOKING_CHECK_OUT");
+  const canCancelBooking = hasPermission(user, "BOOKING_CANCEL");
   const [rooms, setRooms] = useState<RoomWithType[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecordWithDetails[]>([]);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
@@ -76,6 +79,9 @@ export default function RoomsPage() {
   // States cho tính năng tích hợp Dịch vụ phòng (Room Service) & Operations
   const [selectedOccupiedRoom, setSelectedOccupiedRoom] = useState<RoomWithType | null>(null);
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [operationTab, setOperationTab] = useState("stay-info");
+  const [checkoutAfterPayment, setCheckoutAfterPayment] = useState(false);
   const [activeBookingServices, setActiveBookingServices] = useState<any[]>([]);
   const [allServices, setAllServices] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
@@ -309,7 +315,7 @@ export default function RoomsPage() {
 
   const handleDirectCheckIn = async (room: RoomWithType) => {
     const booking = getCurrentBooking(room);
-    if (!booking || !["BOOKED", "PENDING", "CONFIRMED"].includes(booking.status)) return false;
+    if (!booking || !["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(booking.status)) return false;
     if (!canCheckIn) {
       toast.error("Bạn không có quyền nhận phòng");
       return true;
@@ -342,6 +348,7 @@ export default function RoomsPage() {
       if (room.status === "AVAILABLE") {
         setQuickBookingRoom(room);
         const now = new Date();
+        now.setSeconds(0, 0);
         const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         setQuickBookingForm({
           customerName: "",
@@ -367,12 +374,18 @@ export default function RoomsPage() {
       return;
     }
 
-    if (["BOOKED", "PENDING", "CONFIRMED"].includes(activeBooking.status)) {
+    if (["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(activeBooking.status)) {
+      if (activeBooking.status === "NO_SHOW") {
+        setSelectedTimelineBooking(activeBooking);
+        return;
+      }
       await handleDirectCheckIn(room);
       return;
     }
     
     setSelectedOccupiedRoom(room);
+    setOperationTab("stay-info");
+    setCheckoutAfterPayment(false);
     setIsServiceDialogOpen(true);
     setLoadingServices(true);
     setNewCheckOutDate(formatToDateTimeLocal(activeBooking.checkOutDate));
@@ -418,6 +431,10 @@ export default function RoomsPage() {
   };
 
   const handleTimelineEmptySlotClick = (roomId: string, checkInDate: Date) => {
+    if (checkInDate < new Date()) {
+      toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
+      return;
+    }
     const room = rooms.find((item) => item.id === roomId);
     if (!room || room.status === "MAINTENANCE") return;
 
@@ -461,6 +478,56 @@ export default function RoomsPage() {
       toast.error(error.message || "Không thể Check-in");
     } finally {
       setTimelineCheckInSubmitting(false);
+    }
+  };
+
+  const handleTimelineCancel = async () => {
+    if (!selectedTimelineBooking) return;
+    try {
+      setTimelineCheckInSubmitting(true);
+      await BookingAPI.updateBookingStatus(selectedTimelineBooking.id, "CANCELLED");
+      toast.success(selectedTimelineBooking.status === "NO_SHOW" ? "Đã xử lý No-show và giải phóng lịch phòng" : "Đã hủy booking");
+      setSelectedTimelineBooking(null);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể hủy booking");
+    } finally {
+      setTimelineCheckInSubmitting(false);
+    }
+  };
+
+  const handleRoomCheckout = async () => {
+    const booking = selectedOccupiedRoom?.bookings?.[0];
+    if (!booking || booking.status !== "CHECKED_IN") {
+      toast.error("Chỉ có thể trả phòng khi phòng đang có khách");
+      return;
+    }
+    const total = Number(activeInvoice?.totalAmount || booking.totalAmount || 0);
+    const paid = activeInvoice?.payments?.reduce((sum: number, payment: any) => sum + Number(payment.amount), 0) || 0;
+    const remaining = Math.max(0, total - paid);
+
+    if (!activeInvoice || remaining > 0) {
+      setCheckoutAfterPayment(true);
+      setQuickPayAmount(remaining);
+      setOperationTab("quick-pay");
+      toast.info(activeInvoice ? "Vui lòng thanh toán phần còn lại trước khi trả phòng" : "Vui lòng lập hóa đơn trước khi trả phòng");
+      return;
+    }
+
+    if (!window.confirm(`Hóa đơn đã thanh toán. Xác nhận trả phòng ${selectedOccupiedRoom?.roomNumber} cho khách ${booking.customerName}?`)) return;
+
+    setCheckingOut(true);
+    try {
+      await BookingAPI.updateBookingStatus(booking.id, "CHECKED_OUT");
+      toast.success(`Trả phòng ${selectedOccupiedRoom?.roomNumber} thành công`);
+      setIsServiceDialogOpen(false);
+      setSelectedOccupiedRoom(null);
+      await loadData();
+      window.dispatchEvent(new Event("refresh-notifications"));
+    } catch (error: any) {
+      toast.error(error.message || "Không thể trả phòng");
+    } finally {
+      setCheckingOut(false);
     }
   };
 
@@ -613,6 +680,12 @@ export default function RoomsPage() {
       toast.error("Vui lòng nhập đầy đủ các trường bắt buộc");
       return;
     }
+    const currentMinute = new Date();
+    currentMinute.setSeconds(0, 0);
+    if (new Date(quickBookingForm.checkInDate) < currentMinute) {
+      toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
+      return;
+    }
 
     setQuickBookingSubmitting(true);
     try {
@@ -712,8 +785,17 @@ export default function RoomsPage() {
         const totalPaid = updatedInv.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0;
         const remaining = Number(updatedInv.totalAmount) - totalPaid;
         setQuickPayAmount(remaining > 0 ? remaining : 0);
+        const booking = selectedOccupiedRoom?.bookings?.[0];
+        if (checkoutAfterPayment && remaining <= 0 && booking?.status === "CHECKED_IN") {
+          await BookingAPI.updateBookingStatus(booking.id, "CHECKED_OUT");
+          toast.success(`Đã thanh toán và trả phòng ${selectedOccupiedRoom?.roomNumber} thành công`);
+          setCheckoutAfterPayment(false);
+          setIsServiceDialogOpen(false);
+          setSelectedOccupiedRoom(null);
+          window.dispatchEvent(new Event("refresh-notifications"));
+        }
       }
-      loadData();
+      await loadData();
     } catch (error: any) {
       toast.error(error.message || "Không thể thực hiện thanh toán");
     } finally {
@@ -859,12 +941,18 @@ export default function RoomsPage() {
               <div className="flex justify-between py-3"><span className="text-muted-foreground">Mã booking</span><strong>#{selectedTimelineBooking.id}</strong></div>
               <div className="flex justify-between py-3"><span className="text-muted-foreground">Nhận phòng</span><strong>{formatDate(selectedTimelineBooking.checkInDate)}</strong></div>
               <div className="flex justify-between py-3"><span className="text-muted-foreground">Trả phòng</span><strong>{formatDate(selectedTimelineBooking.checkOutDate)}</strong></div>
-              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trạng thái</span><Badge>{selectedTimelineBooking.status}</Badge></div>
+              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trạng thái</span><Badge className={["CHECKED_OUT", "COMPLETED"].includes(selectedTimelineBooking.status) ? "bg-slate-500 text-white" : getBookingStatusConfig(selectedTimelineBooking.status).timelineClass}>{getBookingStatusConfig(selectedTimelineBooking.status).label}</Badge></div>
+              {selectedTimelineBooking.status === "NO_SHOW" && <div className="flex justify-between py-3 font-semibold text-[#B052C0]"><span>Khách chưa đến</span><span>{getOverdueLabel(selectedTimelineBooking.checkInDate)}</span></div>}
             </div>
           </div>}
           <DialogFooter className="border-t bg-muted/20 p-5">
             <Button variant="outline" onClick={() => setSelectedTimelineBooking(null)}>Đóng</Button>
-            {selectedTimelineBooking && ["BOOKED", "CONFIRMED", "EXPECTED_ARRIVAL"].includes(selectedTimelineBooking.status) && canCheckIn && (
+            {selectedTimelineBooking && ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(selectedTimelineBooking.status) && canCancelBooking && (
+              <Button variant="destructive" onClick={handleTimelineCancel} disabled={timelineCheckInSubmitting}>
+                {selectedTimelineBooking.status === "NO_SHOW" ? "Xử lý No-show & giải phóng" : "Hủy booking"}
+              </Button>
+            )}
+            {selectedTimelineBooking && ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(selectedTimelineBooking.status) && canCheckIn && new Date() >= new Date(selectedTimelineBooking.checkInDate) && (
               <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleTimelineCheckIn} disabled={timelineCheckInSubmitting}>
                 {timelineCheckInSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}Check-in
               </Button>
@@ -894,7 +982,7 @@ export default function RoomsPage() {
             </div>
           </DialogHeader>
 
-          <Tabs defaultValue="stay-info" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <Tabs value={operationTab} onValueChange={setOperationTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <TabsList className="grid w-full max-w-lg grid-cols-3 mx-6 mt-4">
               <TabsTrigger value="stay-info">👤 Khách & Đổi/Gia hạn</TabsTrigger>
               <TabsTrigger value="services">🛎️ Dịch vụ phòng</TabsTrigger>
@@ -1147,7 +1235,7 @@ export default function RoomsPage() {
                   
                   <div className="space-y-2 flex flex-col text-left">
                     <Label className="text-sm font-semibold">Số lượng</Label>
-                    <Input 
+                    <Input
                       type="number" 
                       min={1} 
                       value={serviceQuantity} 
@@ -1375,6 +1463,16 @@ export default function RoomsPage() {
           </Tabs>
 
           <DialogFooter className="border-t p-6 bg-muted/10">
+            {selectedOccupiedRoom?.bookings?.[0]?.status === "CHECKED_IN" && canCheckOut && (
+              <Button
+                className="bg-rose-600 text-white hover:bg-rose-700"
+                onClick={handleRoomCheckout}
+                disabled={checkingOut}
+              >
+                {checkingOut ? <Loader2 className="mr-2 size-4 animate-spin" /> : <LogOut className="mr-2 size-4" />}
+                Trả phòng
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setIsServiceDialogOpen(false)}>
               Đóng
             </Button>
@@ -1563,6 +1661,7 @@ export default function RoomsPage() {
                     <Input
                       id="quick-checkin-date"
                       type="datetime-local"
+                      min={formatToDateTimeLocal(new Date())}
                       value={quickBookingForm.checkInDate}
                       onChange={(e) => setQuickBookingForm({ ...quickBookingForm, checkInDate: e.target.value })}
                       required

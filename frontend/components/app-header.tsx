@@ -60,10 +60,15 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
     };
 
     window.addEventListener("refresh-notifications", handleRefresh);
-    const interval = setInterval(fetchNotifications, 10000); // Poll mỗi 10 giây
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = setInterval(refreshWhenVisible, 60000);
 
     return () => {
       window.removeEventListener("refresh-notifications", handleRefresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
       clearInterval(interval);
     };
   }, []);

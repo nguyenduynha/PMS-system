@@ -240,6 +240,12 @@ export default function BookingsPage() {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc");
       return;
     }
+    const currentMinute = new Date();
+    currentMinute.setSeconds(0, 0);
+    if (new Date(formData.checkInDate) < currentMinute) {
+      toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -841,6 +847,7 @@ export default function BookingsPage() {
                     <Input
                       id="checkInDate"
                       type="datetime-local"
+                      min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                       value={formData.checkInDate}
                       onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
                       required

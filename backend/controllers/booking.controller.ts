@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { BookingService } from "../services/booking.service";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 export const BookingController = {
   // 1. Lấy danh sách đặt phòng
@@ -13,9 +14,9 @@ export const BookingController = {
   },
 
   // 2. Tạo đặt phòng mới
-  create: async (req: Request, res: Response) => {
+  create: async (req: AuthRequest, res: Response) => {
     try {
-      const newBooking = await BookingService.createBooking(req.body);
+      const newBooking = await BookingService.createBooking({ ...req.body, createdById: req.user?.id });
       res.status(201).json({
         message: "Đặt phòng thành công",
         data: newBooking
@@ -26,7 +27,7 @@ export const BookingController = {
   },
 
   // 3. Cập nhật trạng thái đặt phòng
-  updateStatus: async (req: Request, res: Response) => {
+  updateStatus: async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -35,7 +36,7 @@ export const BookingController = {
         return res.status(400).json({ message: "Trạng thái không được bỏ trống" });
       }
 
-      const updated = await BookingService.updateBookingStatus(id, status);
+      const updated = await BookingService.updateBookingStatus(id, status, req.user?.id);
       res.json({
         message: "Cập nhật trạng thái thành công",
         data: updated

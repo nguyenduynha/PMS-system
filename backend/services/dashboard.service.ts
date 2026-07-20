@@ -2,41 +2,26 @@ import prisma from "../config/prisma";
 
 export const DashboardService = {
   getStats: async () => {
-    const totalRooms = await prisma.room.count();
-    const availableRooms = await prisma.room.count({
-      where: { status: "AVAILABLE" }
-    });
-    const occupiedRooms = await prisma.room.count({
-      where: { status: "OCCUPIED" }
-    });
-    const dirtyRooms = await prisma.room.count({
-      where: { status: "DIRTY" }
-    });
-    const maintenanceRooms = await prisma.room.count({
-      where: { status: "MAINTENANCE" }
-    });
+    const [roomCounts, activeBookings, checkedInRevenue] = await Promise.all([
+      prisma.room.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.booking.count({
+        where: { status: { in: ["CHECKED_IN", "CONFIRMED"] } }
+      }),
+      prisma.booking.aggregate({
+        where: { status: "CHECKED_IN" },
+        _sum: { totalAmount: true }
+      })
+    ]);
 
-    const activeBookings = await prisma.booking.count({
-      where: {
-        status: {
-          in: ["CHECKED_IN", "CONFIRMED"]
-        }
-      }
-    });
-
-    const checkedInBookings = await prisma.booking.findMany({
-      where: {
-        status: "CHECKED_IN"
-      },
-      select: {
-        totalAmount: true
-      }
-    });
-
-    const todayRevenue = checkedInBookings.reduce(
-      (sum, b) => sum + Number(b.totalAmount),
-      0
+    const countByStatus = new Map(
+      roomCounts.map((item) => [item.status, item._count._all])
     );
+    const totalRooms = roomCounts.reduce((sum, item) => sum + item._count._all, 0);
+    const availableRooms = countByStatus.get("AVAILABLE") || 0;
+    const occupiedRooms = countByStatus.get("OCCUPIED") || 0;
+    const dirtyRooms = countByStatus.get("DIRTY") || 0;
+    const maintenanceRooms = countByStatus.get("MAINTENANCE") || 0;
+    const todayRevenue = Number(checkedInRevenue._sum.totalAmount || 0);
 
     const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
@@ -316,22 +301,22 @@ export const DashboardService = {
 
   getNotifications: async () => {
     // 1. Lấy 15 đặt phòng được cập nhật gần nhất
-    const bookings = await prisma.booking.findMany({
+    const [bookings, maintenances] = await Promise.all([prisma.booking.findMany({
       take: 15,
       orderBy: { updatedAt: "desc" },
       include: {
         room: true
       }
-    });
+    }),
 
     // 2. Lấy 15 bản ghi bảo trì được cập nhật gần nhất
-    const maintenances = await prisma.maintenanceRecord.findMany({
+    prisma.maintenanceRecord.findMany({
       take: 15,
       orderBy: { updatedAt: "desc" },
       include: {
         room: true
       }
-    });
+    })]);
 
     const list: any[] = [];
 

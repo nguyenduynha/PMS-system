@@ -12,6 +12,7 @@ import { FinanceAPI } from "@/services/finance.service";
 import { BookingAPI } from "@/services/booking.service";
 import { RoomAPI } from "@/services/room.service";
 import { EMPTY_HOTEL_PROFILE, HotelProfile, HotelProfileAPI } from "@/services/hotel-profile.service";
+import { buildBookingReportRows, exportBookingReportExcel, exportBookingReportPdf, formatReportMoney } from "@/lib/booking-report";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,14 @@ export default function ReportsPage() {
   );
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailTransactions, setDetailTransactions] = useState<any[]>([]);
+  const [reportBookings, setReportBookings] = useState<any[]>([]);
+  const [reportRooms, setReportRooms] = useState<any[]>([]);
+  const [reportStatus, setReportStatus] = useState("ALL");
+  const [reportSource, setReportSource] = useState("ALL");
+  const [reportRoomType, setReportRoomType] = useState("ALL");
+  const [reportRoom, setReportRoom] = useState("ALL");
+  const [reportUser, setReportUser] = useState("ALL");
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
 
   const loadReportData = async () => {
     try {
@@ -106,6 +115,9 @@ export default function ReportsPage() {
   useEffect(() => {
     if (showDetailModal) {
       loadDetailData();
+      Promise.all([BookingAPI.getBookings(), RoomAPI.getRooms()])
+        .then(([bookings, rooms]) => { setReportBookings(bookings); setReportRooms(rooms); })
+        .catch((error) => toast.error("Không thể tải dữ liệu booking: " + error.message));
     }
   }, [showDetailModal, loadDetailData]);
 
@@ -200,6 +212,13 @@ export default function ReportsPage() {
   // Tìm giá trị doanh thu lớn nhất để co giãn cột biểu đồ chính
   const maxRevenue = Math.max(...revenueData.map((item) => item.revenue), 100000);
 
+  const reportFilters = {
+    startDate: detailStartDate, endDate: detailEndDate, status: reportStatus,
+    source: reportSource, roomTypeId: reportRoomType, roomId: reportRoom, userId: reportUser,
+  };
+  const reportRows = buildBookingReportRows(reportBookings, reportFilters);
+  const reportFileName = `Bao_cao_booking_${detailStartDate || "tat-ca"}_${detailEndDate || "tat-ca"}`;
+
   const handleExportExcel = async () => {
     try {
       toast.loading("Đang tổng hợp dữ liệu báo cáo chi tiết...", { id: "export-excel" });
@@ -288,6 +307,23 @@ export default function ReportsPage() {
       toast.success("Xuất file báo cáo chi tiết Excel thành công", { id: "export-excel" });
     } catch (error: any) {
       toast.error("Lỗi khi xuất file báo cáo: " + error.message, { id: "export-excel" });
+    }
+  };
+
+  const exportCurrentBookingReport = async (format: "excel" | "pdf") => {
+    try {
+      setExporting(format);
+      const freshBookings = await BookingAPI.getBookings();
+      const rows = buildBookingReportRows(freshBookings, reportFilters);
+      setReportBookings(freshBookings);
+      if (!rows.length) throw new Error("Không có booking phù hợp với bộ lọc");
+      if (format === "excel") await exportBookingReportExcel(rows, reportFileName);
+      else await exportBookingReportPdf(rows, reportFileName);
+      toast.success(`Đã xuất ${rows.length} booking ra ${format === "excel" ? "Excel" : "PDF"}`);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể xuất báo cáo");
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -546,12 +582,20 @@ export default function ReportsPage() {
                     </div>
 
                     <Button 
-                      onClick={handleExportExcel}
+                      onClick={() => exportCurrentBookingReport("excel")}
                       variant="outline"
                       className="border-primary text-primary hover:bg-primary/5 font-semibold h-9 flex items-center gap-1.5"
                     >
-                      <Download className="size-4" />
-                      Xuất file Excel
+                      {exporting === "excel" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                      Xuất Excel (.xlsx)
+                    </Button>
+                    <div className="space-y-1 text-left"><Label className="font-semibold">Trạng thái</Label><Select value={reportStatus} onValueChange={setReportStatus}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{Array.from(new Set(reportBookings.map(b => b.status))).map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-1 text-left"><Label className="font-semibold">Nguồn đặt</Label><Select value={reportSource} onValueChange={setReportSource}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{Array.from(new Set(reportBookings.map(b => b.bookingSource))).filter(Boolean).map(value => <SelectItem key={String(value)} value={String(value)}>{String(value)}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-1 text-left"><Label className="font-semibold">Loại phòng</Label><Select value={reportRoomType} onValueChange={setReportRoomType}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{Array.from(new Map(reportRooms.map(r => [String(r.roomTypeId), r.roomType?.name])).entries()).map(([id, name]) => <SelectItem key={id} value={id}>{name || id}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-1 text-left"><Label className="font-semibold">Phòng</Label><Select value={reportRoom} onValueChange={setReportRoom}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{reportRooms.map(room => <SelectItem key={room.id} value={String(room.id)}>Phòng {room.roomNumber}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-1 text-left"><Label className="font-semibold">Nhân viên tạo</Label><Select value={reportUser} onValueChange={setReportUser}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{Array.from(new Map(reportBookings.filter(b => b.user).map(b => [String(b.userId), b.user.fullName])).entries()).map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select></div>
+                    <Button onClick={() => exportCurrentBookingReport("pdf")} variant="outline" className="border-rose-500 text-rose-600 hover:bg-rose-50 font-semibold h-9" disabled={!!exporting}>
+                      {exporting === "pdf" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-4" />}Xuất PDF
                     </Button>
                   </div>
 
@@ -571,6 +615,15 @@ export default function ReportsPage() {
                         {formatCurrency(detailTotals.profit)}
                       </span>
                     </div>
+                  </div>
+
+                  <div className="mb-4 overflow-x-auto rounded-xl border bg-card">
+                    <div className="flex items-center justify-between border-b px-4 py-3 text-xs"><strong>Dữ liệu booking sẽ xuất</strong><span>{reportRows.length} booking · Tổng {formatReportMoney(reportRows.reduce((sum, row) => sum + row.totalAmount, 0))}</span></div>
+                    <table className="min-w-[1050px] w-full text-[11px]">
+                      <thead className="bg-muted/60"><tr><th className="p-2 text-left">Mã đặt phòng</th><th className="p-2 text-left">Tên phòng</th><th className="p-2 text-left">Số phòng</th><th className="p-2 text-left">Tên khách</th><th className="p-2 text-left">Ngày đến</th><th className="p-2 text-left">Ngày đi</th><th className="p-2 text-left">Nguồn</th><th className="p-2 text-left">Dịch vụ</th><th className="p-2 text-right">Số tiền</th><th className="p-2 text-left">Nhân viên</th></tr></thead>
+                      <tbody className="divide-y">{reportRows.slice(0, 100).map(row => <tr key={row.bookingCode}><td className="p-2 font-semibold">{row.bookingCode}</td><td className="p-2">{row.roomName}</td><td className="p-2">{row.roomNumber}</td><td className="p-2">{row.customerName}</td><td className="p-2">{row.checkIn}</td><td className="p-2">{row.checkOut}</td><td className="p-2">{row.source}</td><td className="max-w-[240px] truncate p-2" title={row.services}>{row.services}</td><td className="p-2 text-right font-semibold">{formatReportMoney(row.totalAmount)}</td><td className="p-2">{row.createdBy}</td></tr>)}</tbody>
+                    </table>
+                    {reportRows.length > 100 && <p className="border-t p-2 text-center text-xs text-muted-foreground">Đang xem trước 100 dòng; file xuất chứa đủ {reportRows.length} dòng.</p>}
                   </div>
 
                   {/* Biểu đồ và Bảng chi tiết cuộn */}

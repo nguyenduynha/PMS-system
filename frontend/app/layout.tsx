@@ -35,7 +35,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className="bg-background" suppressHydrationWarning>
-      <body className="font-sans antialiased selection:bg-blue-200 selection:text-blue-950">
+      <body
+        className="font-sans antialiased selection:bg-blue-200 selection:text-blue-950"
+        suppressHydrationWarning
+      >
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
             {children}

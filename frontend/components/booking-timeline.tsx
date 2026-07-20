@@ -11,6 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getBookingStatusConfig, getOverdueLabel } from "@/lib/booking-status";
+import { toast } from "sonner";
 
 type TimelineView = "day" | "week" | "month";
 
@@ -57,7 +59,7 @@ type BookingTimelineProps = {
   onBookingClick: (bookingId: string) => void;
 };
 
-const ACTIVE_STATUSES = ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "CHECKED_IN"];
+const VISIBLE_STATUSES = ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW", "CHECKED_IN", "CHECKED_OUT", "COMPLETED"];
 
 function startOfDay(value: Date) {
   const date = new Date(value);
@@ -102,21 +104,11 @@ function capitalize(value: string) {
 }
 
 function getStatusStyle(status: string) {
-  if (status === "PENDING") return "border-amber-300 bg-amber-500 text-white";
-  if (status === "BOOKED") return "border-indigo-300 bg-indigo-500 text-white";
-  if (status === "CONFIRMED") return "border-blue-400 bg-blue-600 text-white";
-  if (status === "EXPECTED_ARRIVAL") return "border-cyan-400 bg-cyan-600 text-white";
-  if (status === "CHECKED_IN") return "border-emerald-400 bg-emerald-600 text-white";
-  return "border-slate-300 bg-slate-500 text-white";
+  return getBookingStatusConfig(status).timelineClass;
 }
 
 function getStatusLabel(status: string) {
-  if (status === "PENDING") return "Chờ xác nhận";
-  if (status === "BOOKED") return "Đã đặt";
-  if (status === "CONFIRMED") return "Đã xác nhận";
-  if (status === "EXPECTED_ARRIVAL") return "Sắp đến";
-  if (status === "CHECKED_IN") return "Đang ở";
-  return "Đã trả phòng";
+  return getBookingStatusConfig(status).label;
 }
 
 function getRoomStatusLabel(status: string) {
@@ -247,7 +239,13 @@ export function BookingTimeline({
       end.setHours(12, 0, 0, 0);
     }
 
-    onEmptySlotClick(selection.roomId, selection.startIndex === selection.endIndex ? selection.dateTime : start);
+    const selectedStart = selection.startIndex === selection.endIndex ? selection.dateTime : start;
+    if (selectedStart < new Date()) {
+      toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
+      setSelection(null);
+      return;
+    }
+    onEmptySlotClick(selection.roomId, selectedStart);
     setSelection(null);
   };
 
@@ -360,7 +358,7 @@ export function BookingTimeline({
           ) : (
             rooms.map((room) => {
               const roomBookings = bookings.filter((booking) => {
-                if (booking.roomId !== room.id || !ACTIVE_STATUSES.includes(booking.status)) return false;
+                if (booking.roomId !== room.id || !VISIBLE_STATUSES.includes(booking.status)) return false;
                 const bookingStart = new Date(booking.checkInDate);
                 const bookingEnd = new Date(booking.checkOutDate);
                 return bookingStart < rangeEnd && bookingEnd > rangeStart;
@@ -390,6 +388,10 @@ export function BookingTimeline({
                       if (isBlocked || !canCreate || event.button !== 0) return;
                       const index = getSlotIndex(event.clientX, event.currentTarget);
                       const point = getDateTimeAtPointer(event.clientX, event.currentTarget);
+                      if (point.value < new Date()) {
+                        toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
+                        return;
+                      }
                       setSelection({ roomId: room.id, startIndex: index, endIndex: index, dateTime: point.value });
                     }}
                     onPointerMove={(event) => {
@@ -412,6 +414,7 @@ export function BookingTimeline({
                             slot.isWeekend && "bg-muted/30",
                             slot.isToday && "bg-primary/5",
                             isBlocked && "bg-zinc-200/50 dark:bg-zinc-800/50",
+                            slot.end <= now && "cursor-not-allowed bg-slate-200/70 dark:bg-slate-800/70",
                           )}
                         >
                           {view === "day" && <div className="h-full w-1/2 border-r border-dashed border-slate-200 dark:border-slate-800" />}
@@ -454,7 +457,9 @@ export function BookingTimeline({
                           title={`${booking.customerName} - ${getStatusLabel(booking.status)}`}
                         >
                           <span className="block truncate font-semibold">{booking.customerName}</span>
-                          <span className="block truncate text-[10px] opacity-90">{getStatusLabel(booking.status)}</span>
+                          <span className="block truncate text-[10px] opacity-90">
+                            {getStatusLabel(booking.status)}{booking.status === "NO_SHOW" ? ` – ${getOverdueLabel(booking.checkInDate)}` : ""}
+                          </span>
                         </button>
                       );
                     })}

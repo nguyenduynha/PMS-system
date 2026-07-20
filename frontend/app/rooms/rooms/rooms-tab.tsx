@@ -22,6 +22,7 @@ import {
 import { RoomStatusBadge } from "@/components/room-status-badge";
 import { BookingTimeline } from "@/components/booking-timeline";
 import { RoomWithType, Amenity } from "@/lib/types";
+import { getOverdueLabel, getRoomDisplayStatus } from "@/lib/booking-status";
 
 // Ánh xạ các icon tiện nghi trực tiếp trong component
 const amenityIcons: Record<string, React.ElementType> = { 
@@ -73,6 +74,17 @@ function getFlagEmoji(nationality: string) {
 }
 
 function getStatusStyles(status: string, isReserved: boolean) {
+  if (status === "NO_SHOW") {
+    return {
+      cardBg: "from-purple-500/5 to-purple-500/10 dark:from-purple-950/10 dark:to-purple-950/20",
+      border: "border-purple-200 hover:border-purple-300",
+      accentBar: "bg-[#B052C0]",
+      statusText: "text-[#B052C0]",
+      badgeText: "text-[#B052C0] border-purple-200",
+      label: "Chưa đến",
+      icon: AlertCircle
+    };
+  }
   if (status === "MAINTENANCE") {
     return {
       cardBg: "from-amber-500/5 to-amber-500/10 dark:from-amber-950/10 dark:to-amber-950/20",
@@ -191,7 +203,7 @@ export function RoomsTab({
     (acc, r) => {
       const activeBooking = r.bookings?.[0];
       
-      let displayStatus = r.status;
+      let displayStatus = getRoomDisplayStatus(r);
       let isReserved = false;
       
       if (activeBooking) {
@@ -204,6 +216,7 @@ export function RoomsTab({
           }
         }
       }
+      if (activeBooking?.status === "NO_SHOW") displayStatus = "NO_SHOW";
       
       if (displayStatus === "MAINTENANCE") {
         acc.maintenance += 1;
@@ -219,6 +232,9 @@ export function RoomsTab({
         if (activeBooking && new Date(activeBooking.checkInDate).toDateString() === new Date().toDateString()) {
           acc.pendingArrival += 1;
         }
+      } else if (displayStatus === "NO_SHOW") {
+        acc.reserved += 1;
+        acc.pendingArrival += 1;
       } else {
         acc.available += 1;
       }
@@ -546,7 +562,7 @@ export function RoomsTab({
                 const activeBooking = room.bookings?.[0];
                 const activeMaintenance = room.maintenance?.[0];
                 
-                let displayStatus = room.status;
+                let displayStatus = getRoomDisplayStatus(room);
                 let isReserved = false;
                 
                 if (activeBooking) {
@@ -557,6 +573,7 @@ export function RoomsTab({
                     displayStatus = "RESERVED";
                   }
                 }
+                if (activeBooking?.status === "NO_SHOW") displayStatus = "NO_SHOW";
 
                 return (
                   <TableRow key={room.id}>
@@ -581,6 +598,10 @@ export function RoomsTab({
                       {displayStatus === "OCCUPIED" && activeBooking ? (
                         <span className="text-xs text-amber-700 font-medium">
                           👤 Khách: {activeBooking.customerName} (đến {formatDate(activeBooking.checkOutDate)})
+                        </span>
+                      ) : displayStatus === "NO_SHOW" && activeBooking ? (
+                        <span className="text-xs font-semibold text-[#B052C0]">
+                          ⚠ Khách chưa đến: {activeBooking.customerName} · {getOverdueLabel(activeBooking.checkInDate)}
                         </span>
                       ) : displayStatus === "RESERVED" && activeBooking ? (
                         <span className="text-xs text-purple-700 font-medium">
@@ -670,7 +691,7 @@ export function RoomsTab({
                   {floorRooms.map((room: any) => {
                     const activeBooking = room.bookings?.[0];
                     const activeMaintenance = room.maintenance?.[0];
-                    let displayStatus = room.status;
+                    let displayStatus = getRoomDisplayStatus(room);
                     let isReserved = false;
 
                     if (activeBooking?.status === "CHECKED_IN") displayStatus = "OCCUPIED";
@@ -678,11 +699,13 @@ export function RoomsTab({
                       displayStatus = "RESERVED";
                       isReserved = true;
                     }
+                    if (activeBooking?.status === "NO_SHOW") displayStatus = "NO_SHOW";
 
                     const styles = getStatusStyles(displayStatus, isReserved);
                     const StatusIcon = styles.icon;
                     const sideColor =
                       displayStatus === "AVAILABLE" ? "bg-emerald-600" :
+                      displayStatus === "NO_SHOW" ? "bg-[#B052C0]" :
                       displayStatus === "RESERVED" ? "bg-blue-600" :
                       displayStatus === "OCCUPIED" ? "bg-rose-600" :
                       displayStatus === "DIRTY" ? "bg-slate-600" : "bg-amber-600";
@@ -711,7 +734,7 @@ export function RoomsTab({
                                 {formatCurrency(Number(room.pricePerNight ?? room.roomType.pricePerNight))}
                               </p>
                             </div>
-                          ) : activeBooking && ["OCCUPIED", "RESERVED"].includes(displayStatus) ? (
+                          ) : activeBooking && ["OCCUPIED", "RESERVED", "NO_SHOW"].includes(displayStatus) ? (
                             <div className="min-w-0 space-y-1">
                               <p className="flex items-center gap-1.5 truncate font-bold" title={activeBooking.customerName}>
                                 <span>{getFlagEmoji(activeBooking.nationality)}</span>
@@ -726,6 +749,13 @@ export function RoomsTab({
                               <p className="text-xs font-semibold">
                                 {formatCurrency(Number(activeBooking.totalAmount || room.pricePerNight || room.roomType.pricePerNight))}
                               </p>
+                              {displayStatus === "NO_SHOW" && (
+                                <div className="pt-1 text-[11px] font-bold text-[#B052C0]">
+                                  <p>Khách chưa đến</p>
+                                  <p>{activeBooking.customerPhone || "Chưa có số điện thoại"}</p>
+                                  <p>{getOverdueLabel(activeBooking.checkInDate)}</p>
+                                </div>
+                              )}
                               {displayStatus === "RESERVED" && (
                                 <p className="pt-1 text-[11px] font-bold text-emerald-600">Bấm vào phòng để nhận phòng</p>
                               )}

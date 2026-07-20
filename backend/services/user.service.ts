@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../config/prisma";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { expandLegacyPermissions, getDefaultPermissions } from "../config/permissions";
-
-const prisma = new PrismaClient();
 
 export const UserService = {
   // 1. Lấy danh sách user

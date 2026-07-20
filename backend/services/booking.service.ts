@@ -2,10 +2,11 @@ import prisma from "../config/prisma";
 import { Prisma } from "@prisma/client";
 import { InvoiceService } from "./invoice.service";
 import { PricingService } from "./pricing.service";
+import { BookingPolicyService, HOLDING_BOOKING_STATUSES } from "./booking-policy.service";
 
 // Các trạng thái vẫn giữ chỗ trên lịch. PENDING được giữ để tương thích dữ liệu
 // hiện tại của hệ thống; BOOKED hỗ trợ dữ liệu PMS chuẩn/được import.
-const OCCUPYING_BOOKING_STATUSES = ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "CHECKED_IN"];
+const OCCUPYING_BOOKING_STATUSES = HOLDING_BOOKING_STATUSES;
 
 const findOverlappingBooking = async ({
   roomId,
@@ -32,6 +33,7 @@ const findOverlappingBooking = async ({
 export const BookingService = {
   // 1. Lấy danh sách đặt phòng
   getAllBookings: async () => {
+    await BookingPolicyService.syncNoShowsIfDue();
     const bookings = await prisma.booking.findMany({
       include: {
         room: {
@@ -43,7 +45,9 @@ export const BookingService = {
           include: {
             payments: true
           }
-        }
+        },
+        user: { select: { id: true, fullName: true, usercode: true, email: true } },
+        bookingServices: { include: { service: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -51,9 +55,21 @@ export const BookingService = {
     return bookings.map(b => ({
       ...b,
       id: b.id.toString(),
+      bookingCode: `BK-${b.id.toString().padStart(6, "0")}`,
       roomId: b.roomId.toString(),
       userId: b.userId ? b.userId.toString() : null,
       customerId: b.customerId ? b.customerId.toString() : null,
+      totalAmount: Number(b.totalAmount),
+      user: b.user ? { ...b.user, id: b.user.id.toString() } : null,
+      bookingServices: b.bookingServices.map(item => ({
+        ...item,
+        id: item.id.toString(),
+        bookingId: item.bookingId.toString(),
+        serviceId: item.serviceId.toString(),
+        price: Number(item.price),
+        totalAmount: Number(item.totalAmount),
+        service: { ...item.service, id: item.service.id.toString(), price: Number(item.service.price) },
+      })),
       room: {
         ...b.room,
         id: b.room.id.toString(),
@@ -95,6 +111,9 @@ export const BookingService = {
       bookingType,
       note
     } = data;
+    const createdById = /^\d+$/.test(String(data.createdById || "")) && String(data.createdById) !== "0"
+      ? BigInt(data.createdById)
+      : null;
 
     // Lấy thông tin phòng và đơn giá
     const room = await prisma.room.findUnique({
@@ -110,12 +129,7 @@ export const BookingService = {
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
 
-    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) {
-      throw new Error("Ngày nhận phòng hoặc trả phòng không hợp lệ");
-    }
-    if (checkOut <= checkIn) {
-      throw new Error("Thời gian trả phòng phải sau thời gian nhận phòng");
-    }
+    BookingPolicyService.assertBookablePeriod(checkIn, checkOut);
     
     // Kiểm tra xem phòng có bị trùng lịch trong khoảng thời gian này không
     const conflictingBooking = await findOverlappingBooking({
@@ -175,6 +189,7 @@ export const BookingService = {
     // Tạo bản ghi đặt phòng
     const newBooking = await prisma.booking.create({
       data: {
+        userId: createdById,
         roomId: BigInt(roomId),
         customerId: customer.id,
         customerName,
@@ -184,7 +199,7 @@ export const BookingService = {
         checkInDate: checkIn,
         checkOutDate: checkOut,
         totalAmount,
-        status: "PENDING", // Mặc định là PENDING
+        status: "BOOKED",
         bookingSource: bookingSource || "WALK_IN",
         bookingType: bookingType || "DAILY",
         guests: Number(guests) || 1
@@ -217,7 +232,7 @@ export const BookingService = {
   },
 
   // 3. Cập nhật trạng thái đặt phòng
-  updateBookingStatus: async (id: string, status: string) => {
+  updateBookingStatus: async (id: string, status: string, processedById?: string) => {
     const bookingId = BigInt(id);
     // Tìm đặt phòng hiện tại
     const booking = await prisma.booking.findUnique({
@@ -229,6 +244,12 @@ export const BookingService = {
     }
 
     if (status === "CHECKED_IN") {
+      if (!["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(booking.status)) {
+        throw new Error("Chỉ booking đã đặt hoặc chưa đến mới được phép Check-in");
+      }
+      if (new Date() < booking.checkInDate) {
+        throw new Error("Chưa đến thời gian Check-in của booking");
+      }
       const conflictingBooking = await findOverlappingBooking({
         roomId: booking.roomId,
         checkIn: booking.checkInDate,
@@ -241,10 +262,23 @@ export const BookingService = {
       }
     }
 
+    if (status === "CHECKED_OUT" && booking.status !== "CHECKED_IN") {
+      throw new Error("Chỉ booking đang có khách mới được phép Check-out");
+    }
+
+    if (["CHECKED_OUT", "COMPLETED"].includes(booking.status)) {
+      throw new Error("Booking đã hoàn thành chỉ được phép xem lịch sử");
+    }
+
     // Cập nhật trạng thái đặt phòng
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
-      data: { status },
+      data: {
+        status,
+        ...(!booking.userId && processedById && /^\d+$/.test(processedById) && processedById !== "0"
+          ? { userId: BigInt(processedById) }
+          : {}),
+      },
       include: {
         room: {
           include: {
