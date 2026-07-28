@@ -29,6 +29,12 @@ export const RoomAPI = {
     }
     return res.json();
   },
+  updateRoomTypePricing: async (id: string, data: any) => {
+    const res = await fetch(`${API_URL}/types/${id}`, { method: "PUT", headers: getHeaders(), body: JSON.stringify(data) });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Không thể cập nhật giá loại phòng");
+    return result;
+  },
 
   getHousekeepingRooms: async () => {
     const res = await fetch(`${API_URL}/housekeeping`, { headers: getHeaders() });

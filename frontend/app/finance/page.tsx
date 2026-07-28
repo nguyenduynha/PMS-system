@@ -17,6 +17,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { FinanceAPI } from "@/services/finance.service";
+import { HotelProfileAPI } from "@/services/hotel-profile.service";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import {
@@ -34,6 +35,7 @@ import {
   X,
   Trash2,
   Loader2,
+  Download,
 } from "lucide-react";
 
 // Categories mapping
@@ -69,6 +71,7 @@ export default function FinancePage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState({ totalIncome: 0, totalExpense: 0, profit: 0 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   // Filters State
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -191,6 +194,101 @@ export default function FinancePage() {
     setSearchQuery("");
   };
 
+  const handleExportExcel = async () => {
+    if (!transactions.length) {
+      toast.error("Không có giao dịch phù hợp để xuất");
+      return;
+    }
+    try {
+      setExporting(true);
+      const [XLSX, hotelProfile] = await Promise.all([
+        import("xlsx"),
+        HotelProfileAPI.get().catch(() => null),
+      ]);
+      const totalIncome = transactions
+        .filter((item) => item.type === "INCOME")
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const totalExpense = transactions
+        .filter((item) => item.type === "EXPENSE")
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      let runningBalance = 0;
+      const chronologicalTransactions = [...transactions].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const detailRows = chronologicalTransactions.map((item, index) => {
+        const amount = Number(item.amount || 0);
+        const income = item.type === "INCOME" ? amount : 0;
+        const expense = item.type === "EXPENSE" ? amount : 0;
+        runningBalance += income - expense;
+        return [
+          index + 1,
+          item.code || "",
+          new Date(item.date),
+          getTypeLabel(item.type),
+          item.category || "",
+          item.description || "",
+          income || "",
+          expense || "",
+          income - expense,
+          runningBalance,
+          item.createdBy?.fullName || "Hệ thống",
+          item.createdBy?.email || "",
+        ];
+      });
+      const summaryRows = [
+        ["BÁO CÁO QUẢN LÝ DÒNG TIỀN"],
+        ["Khách sạn", hotelProfile?.hotelName || ""],
+        ["Khoảng thời gian", `${startDate || "Tất cả"} - ${endDate || "Tất cả"}`],
+        ["Phân loại", filterType === "ALL" ? "Tất cả" : getTypeLabel(filterType)],
+        ["Danh mục", filterCategory === "ALL" ? "Tất cả" : filterCategory],
+        ["Từ khóa", searchQuery || "Không"],
+        [],
+        ["Tổng số giao dịch", transactions.length],
+        ["Tổng thu (VNĐ)", totalIncome],
+        ["Tổng chi (VNĐ)", totalExpense],
+        ["Dòng tiền ròng (VNĐ)", totalIncome - totalExpense],
+      ];
+      const detailHeaders = [
+        "STT",
+        "Mã giao dịch",
+        "Ngày giao dịch",
+        "Phân loại",
+        "Danh mục",
+        "Nội dung / Mô tả",
+        "Tiền thu (VNĐ)",
+        "Tiền chi (VNĐ)",
+        "Dòng tiền (VNĐ)",
+        "Số dư lũy kế (VNĐ)",
+        "Người tạo",
+        "Tài khoản",
+      ];
+      const cashFlowSheet = XLSX.utils.aoa_to_sheet(summaryRows);
+      XLSX.utils.sheet_add_aoa(
+        cashFlowSheet,
+        [["CHI TIẾT GIAO DỊCH THEO TỪNG CỘT"], detailHeaders, ...detailRows],
+        { origin: "A13", cellDates: true }
+      );
+      cashFlowSheet["!cols"] = [6, 18, 16, 12, 20, 45, 18, 18, 18, 20, 24, 28].map(wch => ({ wch }));
+      cashFlowSheet["!autofilter"] = { ref: `A14:L${detailRows.length + 14}` };
+      for (let row = 15; row <= detailRows.length + 14; row++) {
+        const dateCell = cashFlowSheet[`C${row}`];
+        if (dateCell) dateCell.z = "dd/mm/yyyy";
+        for (const column of ["G", "H", "I", "J"]) {
+          const moneyCell = cashFlowSheet[`${column}${row}`];
+          if (moneyCell && typeof moneyCell.v === "number") moneyCell.z = "#,##0";
+        }
+      }
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, cashFlowSheet, "Báo cáo dòng tiền");
+      XLSX.writeFile(workbook, `Bao_cao_dong_tien_${startDate || "tat-ca"}_${endDate || "tat-ca"}.xlsx`);
+      toast.success(`Đã xuất ${transactions.length} giao dịch ra Excel`);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể xuất báo cáo dòng tiền");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <AppSidebar />
@@ -210,10 +308,16 @@ export default function FinancePage() {
               </p>
             </div>
 
-            <Button onClick={() => setShowAddModal(true)}>
-              <Plus className="mr-2 size-4" />
-              Thêm giao dịch mới
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handleExportExcel} disabled={loading || exporting || !transactions.length}>
+                {exporting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-4" />}
+                Xuất Excel
+              </Button>
+              <Button onClick={() => setShowAddModal(true)}>
+                <Plus className="mr-2 size-4" />
+                Thêm giao dịch mới
+              </Button>
+            </div>
           </div>
 
           {/* Stats Cards */}

@@ -206,7 +206,7 @@ export function MaintenanceTab({
 
       {/* --- DIALOG BẮT ĐẦU BẢO TRÌ NỘI BỘ --- */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent variant="right" className="sm:max-w-[500px]">
+        <DialogContent aria-describedby={undefined} variant="right" className="sm:max-w-[500px]">
           <DialogHeader className="border-b p-6 pr-14">
             <DialogTitle className="text-lg font-bold">Bắt đầu bảo trì phòng</DialogTitle>
           </DialogHeader>

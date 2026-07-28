@@ -21,6 +21,13 @@ export const RoomController = {
       res.status(500).json({ message: "Lỗi server khi lấy danh sách loại phòng: " + error.message });
     }
   },
+  updateRoomTypePricing: async (req: Request, res: Response) => {
+    try {
+      res.json(await RoomService.updateRoomTypePricing(req.params.id, req.body));
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Không thể cập nhật giá loại phòng" });
+    }
+  },
 
   // 2. Tạo phòng mới
   create: async (req: Request, res: Response) => {

@@ -19,6 +19,14 @@ export type HotelProfile = {
   ownerPhone: string;
   ownerIdentity: string;
   logoDataUrl: string | null;
+  defaultCheckInTime: string;
+  defaultCheckOutTime: string;
+  freeCancellationHours: number;
+  allowEarlyCheckIn: boolean;
+  allowLateCheckOut: boolean;
+  earlyCheckInFee: number;
+  lateCheckOutFee: number;
+  extraGuestFee: number;
 };
 
 export const EMPTY_HOTEL_PROFILE: HotelProfile = {
@@ -37,6 +45,14 @@ export const EMPTY_HOTEL_PROFILE: HotelProfile = {
   ownerPhone: "",
   ownerIdentity: "",
   logoDataUrl: null,
+  defaultCheckInTime: "14:00",
+  defaultCheckOutTime: "12:00",
+  freeCancellationHours: 24,
+  allowEarlyCheckIn: true,
+  allowLateCheckOut: true,
+  earlyCheckInFee: 100000,
+  lateCheckOutFee: 150000,
+  extraGuestFee: 200000,
 };
 
 const headers = () => ({

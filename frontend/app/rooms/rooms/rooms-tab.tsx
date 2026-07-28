@@ -159,7 +159,7 @@ interface RoomsTabProps {
   setViewMode: (val: "grid" | "list" | "timeline") => void;
   formatCurrency: (val: number) => string;
   onRoomClick: (room: RoomWithType) => void;
-  onTimelineEmptySlotClick: (roomId: string, dateTime: Date) => void;
+  onTimelineEmptySlotClick: (roomId: string, checkInDate: Date, checkOutDate: Date) => void;
   onTimelineBookingClick: (bookingId: string) => void;
   onSaveRoom: (roomData: any) => void; 
   onDeleteRoom: (roomId: string) => void;
@@ -434,7 +434,7 @@ export function RoomsTab({
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent variant="right" className="overflow-hidden sm:max-w-[640px]">
+        <DialogContent aria-describedby={undefined} variant="right" className="overflow-hidden sm:max-w-[640px]">
           <DialogHeader className="p-6 pb-4 border-b shrink-0">
             <DialogTitle className="text-xl font-bold">
               {editingRoom ? `Chỉnh sửa phòng: ${editingRoom.roomNumber}` : "Thêm phòng mới"}

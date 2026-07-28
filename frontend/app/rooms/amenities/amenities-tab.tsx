@@ -138,7 +138,7 @@ export function AmenitiesTab({ amenities, categories, onSave, onDelete }: Amenit
 
       {/* --- DIALOG THÊM / SỬA TIỆN NGHI NỘI BỘ --- */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent variant="right" className="sm:max-w-[480px]">
+        <DialogContent aria-describedby={undefined} variant="right" className="sm:max-w-[480px]">
           <DialogHeader className="border-b p-6 pr-14">
             <DialogTitle className="text-lg font-bold">
               {editingAmenity ? `Chỉnh sửa tiện nghi: ${editingAmenity.name}` : "Thêm tiện nghi mới"}

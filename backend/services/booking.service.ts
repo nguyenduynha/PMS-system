@@ -232,6 +232,42 @@ export const BookingService = {
     };
   },
 
+  updateBookingGuest: async (id: string, data: { customerName: string; customerPhone: string; customerEmail: string; nationality: string; guests: number }) => {
+    const bookingId = BigInt(id);
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) throw new Error("Đặt phòng không tồn tại");
+    if (["CHECKED_OUT", "COMPLETED", "CANCELLED"].includes(booking.status)) {
+      throw new Error("Không thể sửa thông tin khách của booking đã kết thúc");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      let customer = await tx.customer.findUnique({ where: { phoneNumber: data.customerPhone } });
+      if (!customer) {
+        if (booking.customerId) {
+          customer = await tx.customer.update({
+            where: { id: booking.customerId },
+            data: { fullName: data.customerName, phoneNumber: data.customerPhone, email: data.customerEmail || null, nationality: data.nationality },
+          });
+        } else {
+          customer = await tx.customer.create({
+            data: { fullName: data.customerName, phoneNumber: data.customerPhone, email: data.customerEmail || null, nationality: data.nationality },
+          });
+        }
+      } else {
+        customer = await tx.customer.update({
+          where: { id: customer.id },
+          data: { fullName: data.customerName, email: data.customerEmail || null, nationality: data.nationality },
+        });
+      }
+
+      const updated = await tx.booking.update({
+        where: { id: bookingId },
+        data: { customerId: customer.id, customerName: data.customerName, customerPhone: data.customerPhone, customerEmail: data.customerEmail, nationality: data.nationality, guests: data.guests },
+      });
+      return { ...updated, id: updated.id.toString(), roomId: updated.roomId.toString(), customerId: updated.customerId?.toString() || null, userId: updated.userId?.toString() || null, totalAmount: Number(updated.totalAmount) };
+    });
+  },
+
   // 3. Cập nhật trạng thái đặt phòng
   updateBookingStatus: async (id: string, status: string, processedById?: string) => {
     const bookingId = BigInt(id);
@@ -248,8 +284,23 @@ export const BookingService = {
       if (!["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(booking.status)) {
         throw new Error("Chỉ booking đã đặt hoặc chưa đến mới được phép Check-in");
       }
-      if (new Date() < booking.checkInDate) {
-        throw new Error("Chưa đến thời gian Check-in của booking");
+      const now = new Date();
+      if (now < booking.checkInDate) {
+        const settings = await prisma.hotelProfile.findUnique({
+          where: { id: 1 },
+          select: { allowEarlyCheckIn: true },
+        });
+        const isCheckInDay =
+          now.getFullYear() === booking.checkInDate.getFullYear() &&
+          now.getMonth() === booking.checkInDate.getMonth() &&
+          now.getDate() === booking.checkInDate.getDate();
+        if (!settings?.allowEarlyCheckIn || !isCheckInDay) {
+          throw new Error(
+            isCheckInDay
+              ? "Chưa đến giờ Check-in và khách sạn không cho phép Check-in sớm"
+              : "Chưa đến ngày Check-in của booking"
+          );
+        }
       }
       const conflictingBooking = await findOverlappingBooking({
         roomId: booking.roomId,

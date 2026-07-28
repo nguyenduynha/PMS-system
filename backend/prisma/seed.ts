@@ -161,9 +161,35 @@ async function main() {
       }
     });
     console.log(`Cleaned up ${deletedTypes.count} legacy room types.`);
+
+    // 4. Seed the default room inventory. Upsert keeps this safe to run again
+    // without creating duplicate room numbers or overwriting operational status.
+    const defaultRooms = [
+      ...["101", "102", "103", "104", "105", "106"].map((roomNumber) => ({ roomNumber, floor: 1, roomTypeId: standardType.id })),
+      ...["201", "202"].map((roomNumber) => ({ roomNumber, floor: 2, roomTypeId: standardType.id })),
+      ...["203", "204", "205", "206"].map((roomNumber) => ({ roomNumber, floor: 2, roomTypeId: deluxeType.id })),
+      ...["301", "302", "303", "304", "305", "306"].map((roomNumber) => ({ roomNumber, floor: 3, roomTypeId: deluxeType.id })),
+      ...["401", "402", "403", "404", "405", "406"].map((roomNumber) => ({ roomNumber, floor: 4, roomTypeId: suiteType.id })),
+    ];
+
+    for (const room of defaultRooms) {
+      await prisma.room.upsert({
+        where: { roomNumber: room.roomNumber },
+        update: {
+          floor: room.floor,
+          roomTypeId: room.roomTypeId,
+        },
+        create: {
+          ...room,
+          status: "AVAILABLE",
+          note: room.roomNumber === "101" ? "Gần thang máy" : "",
+        },
+      });
+    }
+    console.log(`Seeded ${defaultRooms.length} rooms.`);
   }
 
-  // 4. Create or update SUPERADMIN account
+  // 5. Create or update SUPERADMIN account
   const passwordHash = await bcrypt.hash("123", 10);
   const superadminExist = await prisma.user.findFirst({
     where: {

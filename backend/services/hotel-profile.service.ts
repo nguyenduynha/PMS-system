@@ -33,6 +33,14 @@ const defaultProfile = {
   ownerEmail: "",
   ownerPhone: "",
   ownerIdentity: "",
+  defaultCheckInTime: "14:00",
+  defaultCheckOutTime: "12:00",
+  freeCancellationHours: 24,
+  allowEarlyCheckIn: true,
+  allowLateCheckOut: true,
+  earlyCheckInFee: 100000,
+  lateCheckOutFee: 150000,
+  extraGuestFee: 200000,
 };
 
 export const HotelProfileService = {
@@ -57,14 +65,30 @@ export const HotelProfileService = {
       data.logoDataUrl = logo;
     }
 
-    if (!data.hotelName) throw new Error("Tên khách sạn không được để trống");
-    if (!data.ownerName) throw new Error("Tên chủ khách sạn không được để trống");
-    if (!data.address) throw new Error("Địa chỉ khách sạn không được để trống");
+    for (const field of ["defaultCheckInTime", "defaultCheckOutTime"] as const) {
+      if (input[field] !== undefined) {
+        const value = String(input[field]);
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new Error("Giờ vận hành không hợp lệ");
+        data[field] = value;
+      }
+    }
+    const numberData: Record<string, number> = {};
+    for (const field of ["freeCancellationHours", "earlyCheckInFee", "lateCheckOutFee", "extraGuestFee"] as const) {
+      if (input[field] !== undefined) {
+        const value = Number(input[field]);
+        if (!Number.isFinite(value) || value < 0) throw new Error("Giá trị cấu hình không hợp lệ");
+        numberData[field] = value;
+      }
+    }
+    const booleanData: Record<string, boolean> = {};
+    for (const field of ["allowEarlyCheckIn", "allowLateCheckOut"] as const) {
+      if (input[field] !== undefined) booleanData[field] = Boolean(input[field]);
+    }
 
     return prisma.hotelProfile.upsert({
       where: { id: 1 },
-      create: { ...defaultProfile, ...data },
-      update: data,
+      create: { ...defaultProfile, ...data, ...numberData, ...booleanData },
+      update: { ...data, ...numberData, ...booleanData },
     });
   },
 };

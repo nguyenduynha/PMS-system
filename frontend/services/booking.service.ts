@@ -46,6 +46,13 @@ export const BookingAPI = {
     return result;
   },
 
+  updateBookingGuest: async (id: string, data: { customerName: string; customerPhone: string; customerEmail: string; nationality: string; guests: number }) => {
+    const res = await fetch(`${API_URL}/${id}/guest`, { method: "PUT", headers: getHeaders(), body: JSON.stringify(data) });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Không thể cập nhật thông tin khách");
+    return result;
+  },
+
   // 3. Cập nhật trạng thái đặt phòng
   updateBookingStatus: async (id: string, status: string) => {
     const res = await fetch(`${API_URL}/${id}/status`, {

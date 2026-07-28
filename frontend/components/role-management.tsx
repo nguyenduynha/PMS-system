@@ -121,7 +121,7 @@ export function RoleManagement() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+        <DialogContent aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader><DialogTitle>{editingRole ? `Cập nhật Role: ${editingRole.name}` : "Tạo Role mới"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-2 md:grid-cols-2">
             <div className="space-y-2"><Label htmlFor="role-code">Mã Role</Label><Input id="role-code" value={form.code} disabled={Boolean(editingRole)} placeholder="FRONT_DESK" onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} /></div>

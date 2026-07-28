@@ -18,12 +18,12 @@ export const RoomService = {
     const rooms = await prisma.room.findMany({
       include: {
         roomType: true,
-        // Lấy tất cả đặt phòng chưa hủy/thành công để xử lý lọc thời gian
+        // Lấy toàn bộ lịch sử để Timeline có thể xem cả quá khứ và tương lai.
+        // Trạng thái vận hành hiện tại sẽ được lọc riêng ở phía dưới.
         bookings: {
-          where: {
-            status: {
-              in: HOLDING_BOOKING_STATUSES
-            }
+          include: {
+            invoice: { include: { payments: true } },
+            bookingServices: { include: { service: true } },
           },
           orderBy: {
             checkInDate: "asc"
@@ -50,7 +50,10 @@ export const RoomService = {
       // CHECKED_IN là trạng thái vận hành thực tế. Nếu chưa check-in, chỉ coi
       // booking là hiện hành khi thời điểm đang xem nằm trong [check-in, check-out).
       // Booking tương lai tuyệt đối không làm Room Map hiện tại thành RESERVED.
-      let activeBooking = room.bookings.find(b => ["CHECKED_IN", "NO_SHOW"].includes(b.status));
+      let activeBooking = room.bookings.find(b =>
+        b.status === "CHECKED_IN" ||
+        (b.status === "NO_SHOW" && new Date(b.checkOutDate) > now)
+      );
 
       // Điều kiện nửa mở cũng đảm bảo booking kế tiếp bắt đầu đúng lúc booking
       // trước trả phòng không bị coi là trùng.
@@ -68,6 +71,35 @@ export const RoomService = {
         roomId: b.roomId.toString(),
         userId: b.userId ? b.userId.toString() : null,
         customerId: b.customerId ? b.customerId.toString() : null,
+        totalAmount: Number(b.totalAmount),
+        paymentStatus: b.invoice?.status === "PAID" ||
+          Number(b.invoice?.payments.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0) >= Number(b.invoice?.totalAmount || b.totalAmount)
+            ? "PAID"
+            : "UNPAID",
+        invoice: b.invoice ? {
+          ...b.invoice,
+          id: b.invoice.id.toString(),
+          bookingId: b.invoice.bookingId.toString(),
+          subTotal: Number(b.invoice.subTotal),
+          taxAmount: Number(b.invoice.taxAmount),
+          discount: Number(b.invoice.discount),
+          totalAmount: Number(b.invoice.totalAmount),
+          payments: b.invoice.payments.map(payment => ({
+            ...payment,
+            id: payment.id.toString(),
+            invoiceId: payment.invoiceId.toString(),
+            amount: Number(payment.amount),
+          })),
+        } : null,
+        bookingServices: b.bookingServices.map(item => ({
+          ...item,
+          id: item.id.toString(),
+          bookingId: item.bookingId.toString(),
+          serviceId: item.serviceId.toString(),
+          price: Number(item.price),
+          totalAmount: Number(item.totalAmount),
+          service: { ...item.service, id: item.service.id.toString(), price: Number(item.service.price) },
+        })),
       });
 
       return {
@@ -95,8 +127,8 @@ export const RoomService = {
           priceOvernightHoliday: Number(room.roomType.priceOvernightHoliday || 0),
           amenities: room.roomType.amenities || []
         },
-        // `bookings` giữ tương thích cho các thao tác phòng hiện tại; lịch đầy
-        // đủ nằm riêng ở `calendarBookings` để booking tương lai không làm sai Room Map.
+        // `bookings` chỉ chứa booking vận hành hiện tại; `calendarBookings`
+        // chứa đầy đủ cả CHECKED_OUT/COMPLETED để Timeline xem lại lịch sử.
         bookings: activeBooking ? [serializeBooking(activeBooking)] : [],
         calendarBookings: room.bookings.map(serializeBooking),
         currentBooking: activeBooking ? serializeBooking(activeBooking) : null,
@@ -130,6 +162,32 @@ export const RoomService = {
       priceOvernightHoliday: Number(rt.priceOvernightHoliday || 0),
       amenities: rt.amenities || []
     }));
+  },
+
+  updateRoomTypePricing: async (id: string, data: any) => {
+    const roomTypeId = cleanRoomTypeId(id);
+    const fields = [
+      "priceHourly", "priceDaily", "priceOvernight",
+      "priceHourlyWeekend", "priceDailyWeekend", "priceOvernightWeekend",
+      "priceHourlyHoliday", "priceDailyHoliday", "priceOvernightHoliday",
+    ] as const;
+    const prices = Object.fromEntries(fields.map(field => [field, Number(data[field] ?? 0)]));
+    if (Object.values(prices).some(value => !Number.isFinite(value) || value < 0)) {
+      throw new Error("Mức giá không hợp lệ");
+    }
+    const updated = await prisma.roomType.update({
+      where: { id: roomTypeId },
+      data: {
+        pricePerNight: new Prisma.Decimal(prices.priceDaily),
+        ...Object.fromEntries(fields.map(field => [field, new Prisma.Decimal(prices[field])])),
+      },
+    });
+    return {
+      ...updated,
+      id: `rt-${updated.id}`,
+      pricePerNight: Number(updated.pricePerNight),
+      ...Object.fromEntries(fields.map(field => [field, Number(updated[field])])),
+    };
   },
 
   // Chỉ cập nhật trạng thái vận hành; không đụng tới loại phòng, giá hay booking.

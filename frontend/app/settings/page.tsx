@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import { Building2, Database, ImagePlus, Info, Loader2, Moon, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { Building2, CalendarClock, Database, ImagePlus, Info, Loader2, Moon, Save, ShieldCheck, Tags, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
 import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { EMPTY_HOTEL_PROFILE, HotelProfile, HotelProfileAPI } from "@/services/hotel-profile.service";
+import { RoomAPI } from "@/services/room.service";
 
 type ProfileFieldProps = {
   label: string;
@@ -45,16 +46,18 @@ function ProfileField({ label, value, onChange, placeholder, type = "text", requ
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
-  const canEdit = hasPermission(user, "ROLE_ASSIGN");
+  const canEdit = hasPermission(user, "ROLE_ASSIGN_PERMISSION");
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<"time" | "fees" | "prices" | null>(null);
   const [profile, setProfile] = useState<HotelProfile>(EMPTY_HOTEL_PROFILE);
+  const [roomTypes, setRoomTypes] = useState<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
-    HotelProfileAPI.get()
-      .then(setProfile)
+    Promise.all([HotelProfileAPI.get(), RoomAPI.getRoomTypes()])
+      .then(([hotel, types]) => { setProfile(hotel); setRoomTypes(types); })
       .catch((error) => toast.error(error.message))
       .finally(() => setLoading(false));
   }, []);
@@ -82,12 +85,39 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      setProfile(await HotelProfileAPI.update(profile));
-      toast.success("Đã lưu thông tin khách sạn");
+      const savedProfile = await HotelProfileAPI.update(profile);
+      await Promise.all(roomTypes.map((roomType) => RoomAPI.updateRoomTypePricing(roomType.id, roomType)));
+      setProfile(savedProfile);
+      toast.success("Đã lưu toàn bộ cấu hình");
     } catch (error: any) {
       toast.error(error.message || "Không thể lưu thông tin khách sạn");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveProfileSection = async (section: "time" | "fees") => {
+    setSavingSection(section);
+    try {
+      setProfile(await HotelProfileAPI.update(profile));
+      toast.success(section === "time" ? "Đã lưu thiết lập giờ" : "Đã lưu các mức phụ thu");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể lưu cấu hình");
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveRoomPrices = async () => {
+    setSavingSection("prices");
+    try {
+      const saved = await Promise.all(roomTypes.map((roomType) => RoomAPI.updateRoomTypePricing(roomType.id, roomType)));
+      setRoomTypes(saved);
+      toast.success("Đã lưu giá theo loại phòng");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể lưu bảng giá phòng");
+    } finally {
+      setSavingSection(null);
     }
   };
 
@@ -98,6 +128,85 @@ export default function SettingsPage() {
         <AppHeader title="Cài đặt hệ thống" subtitle="Thông tin pháp lý và cấu hình chung của khách sạn" />
         <main className="flex-1 overflow-auto p-6">
           <div className="mx-auto w-full max-w-7xl space-y-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg"><CalendarClock className="size-5 text-primary" /> Thiết lập giờ</CardTitle>
+                  {canEdit && <Button size="sm" onClick={() => saveProfileSection("time")} disabled={savingSection !== null}><Save className="size-4" />{savingSection === "time" ? "Đang lưu..." : "Lưu giờ"}</Button>}
+                </CardHeader>
+                <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+                  <ProfileField label="Giờ check-in mặc định" type="time" value={profile.defaultCheckInTime} onChange={(v) => setProfile(p => ({ ...p, defaultCheckInTime: v }))} disabled={!canEdit} />
+                  <ProfileField label="Giờ check-out mặc định" type="time" value={profile.defaultCheckOutTime} onChange={(v) => setProfile(p => ({ ...p, defaultCheckOutTime: v }))} disabled={!canEdit} />
+                  <ProfileField label="Hủy miễn phí trước (giờ)" type="number" value={String(profile.freeCancellationHours)} onChange={(v) => setProfile(p => ({ ...p, freeCancellationHours: Number(v) }))} disabled={!canEdit} />
+                  <div className="space-y-3 rounded-xl border p-3">
+                    <div className="flex items-center justify-between"><Label>Cho phép check-in sớm</Label><Switch checked={profile.allowEarlyCheckIn} onCheckedChange={(v) => setProfile(p => ({ ...p, allowEarlyCheckIn: v }))} disabled={!canEdit} /></div>
+                    <div className="flex items-center justify-between"><Label>Cho phép check-out muộn</Label><Switch checked={profile.allowLateCheckOut} onCheckedChange={(v) => setProfile(p => ({ ...p, allowLateCheckOut: v }))} disabled={!canEdit} /></div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg"><Tags className="size-5 text-primary" /> Phụ thu</CardTitle>
+                  {canEdit && <Button size="sm" onClick={() => saveProfileSection("fees")} disabled={savingSection !== null}><Save className="size-4" />{savingSection === "fees" ? "Đang lưu..." : "Lưu phụ thu"}</Button>}
+                </CardHeader>
+                <CardContent className="grid gap-4 p-5 sm:grid-cols-3">
+                  {([["Check-in sớm", "earlyCheckInFee"], ["Check-out muộn", "lateCheckOutFee"], ["Khách thêm", "extraGuestFee"]] as const).map(([label, field]) => (
+                    <ProfileField key={field} label={label} type="number" value={String(profile[field])} onChange={(v) => setProfile(p => ({ ...p, [field]: Number(v) }))} disabled={!canEdit} />
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg"><Tags className="size-5 text-primary" /> Giá theo loại phòng</CardTitle>
+                {canEdit && <Button size="sm" onClick={saveRoomPrices} disabled={savingSection !== null}><Save className="size-4" />{savingSection === "prices" ? "Đang lưu..." : "Lưu bảng giá"}</Button>}
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[920px] text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="p-4 text-left">Loại phòng</th>
+                        <th className="p-4 text-left">Hình thức</th>
+                        <th className="p-4 text-left">Ngày thường</th>
+                        <th className="p-4 text-left">Cuối tuần</th>
+                        <th className="p-4 text-left">Ngày lễ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roomTypes.flatMap((roomType, roomIndex) => ([
+                        { label: "Theo giờ", fields: ["priceHourly", "priceHourlyWeekend", "priceHourlyHoliday"] },
+                        { label: "Theo ngày", fields: ["priceDaily", "priceDailyWeekend", "priceDailyHoliday"] },
+                        { label: "Qua đêm", fields: ["priceOvernight", "priceOvernightWeekend", "priceOvernightHoliday"] },
+                      ] as const).map((rate, rateIndex) => (
+                        <tr key={`${roomType.id}-${rate.label}`} className={rateIndex === 2 ? "border-b" : ""}>
+                          {rateIndex === 0 && <td rowSpan={3} className="border-r p-4 align-top font-semibold">{roomType.name}</td>}
+                          <td className="p-3 font-medium text-muted-foreground">{rate.label}</td>
+                          {rate.fields.map(field => (
+                            <td key={field} className="p-2">
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={1000}
+                                  className="h-10 min-w-40 pr-8"
+                                  disabled={!canEdit}
+                                  value={roomType[field] || 0}
+                                  onChange={event => setRoomTypes(list => list.map((item, index) => index === roomIndex ? { ...item, [field]: Number(event.target.value) } : item))}
+                                />
+                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₫</span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      )))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="overflow-hidden">
               <CardHeader className="border-b bg-muted/20">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

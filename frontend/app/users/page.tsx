@@ -200,9 +200,9 @@ export default function UsersPage() {
           subtitle="Quản lý nhân sự, vai trò hệ thống và ma trận phân quyền"
         />
 
-        <main className="flex-1 overflow-auto bg-gradient-to-b from-muted/40 to-background p-6">
-          <Tabs defaultValue="accounts" className="space-y-6">
-            <div className="flex flex-col justify-between gap-4 rounded-2xl border bg-card/90 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center">
+        <main className="flex-1 overflow-auto bg-gradient-to-b from-muted/40 to-background p-4">
+          <Tabs defaultValue="accounts" className="mx-auto max-w-6xl space-y-4">
+            <div className="flex flex-col justify-between gap-3 rounded-xl border bg-card/90 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center">
               <div>
                 <TabsList className="h-11 rounded-xl bg-muted/70 p-1">
                   <TabsTrigger value="accounts" className="h-9 rounded-lg px-4 font-semibold data-[state=active]:shadow-sm">
@@ -222,11 +222,11 @@ export default function UsersPage() {
             </div>
 
             {/* TAB 1: ACCOUNTS LIST */}
-            <TabsContent value="accounts" className="space-y-6">
+            <TabsContent value="accounts" className="space-y-4">
               {/* Stats Block */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
-                  <CardContent className="flex items-center gap-4 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-950">
                       <Shield className="size-6 text-blue-700 dark:text-blue-300" />
                     </div>
@@ -240,7 +240,7 @@ export default function UsersPage() {
                 </Card>
 
                 <Card>
-                  <CardContent className="flex items-center gap-4 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-green-100 p-3 dark:bg-green-950">
                       <UserCheck className="size-6 text-green-700 dark:text-green-300" />
                     </div>
@@ -254,7 +254,7 @@ export default function UsersPage() {
                 </Card>
 
                 <Card>
-                  <CardContent className="flex items-center gap-4 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-red-100 p-3 dark:bg-red-950">
                       <Lock className="size-6 text-red-700 dark:text-red-300" />
                     </div>
@@ -268,7 +268,7 @@ export default function UsersPage() {
                 </Card>
 
                 <Card>
-                  <CardContent className="flex items-center gap-4 p-5">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="rounded-full bg-gray-100 p-3 dark:bg-muted">
                       <XCircle className="size-6 text-gray-700 dark:text-gray-300" />
                     </div>

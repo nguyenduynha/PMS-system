@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Search, User, Settings, LogOut, Loader2 } from "lucide-react";
+import { Bell, Search, User, Settings, LogOut, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { RoomAPI } from "@/services/room.service";
 import { BookingAPI } from "@/services/booking.service";
 import { DashboardAPI } from "@/services/dashboard.service";
+import { HotelProfileAPI } from "@/services/hotel-profile.service";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -33,6 +34,7 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
   // --- HỆ THỐNG THÔNG BÁO ---
   const [notifications, setNotifications] = useState<any[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
+  const [hotelIdentity, setHotelIdentity] = useState({ name: "", logoDataUrl: "" });
 
   // Tải thông báo từ API & LocalStorage
   const fetchNotifications = async () => {
@@ -54,6 +56,12 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
 
   useEffect(() => {
     fetchNotifications();
+    HotelProfileAPI.get()
+      .then((profile) => setHotelIdentity({
+        name: profile.hotelName?.trim() || "",
+        logoDataUrl: profile.logoDataUrl || "",
+      }))
+      .catch(() => setHotelIdentity({ name: "", logoDataUrl: "" }));
 
     const handleRefresh = () => {
       fetchNotifications();
@@ -158,7 +166,25 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
   return (
     <header className="z-40 flex min-h-[76px] items-center justify-between border-b border-slate-200/80 bg-white/85 px-6 shadow-[0_1px_12px_rgba(15,23,42,0.035)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80">
       <div className="min-w-0 pr-4">
-        <h1 className="truncate text-[21px] font-bold tracking-tight text-slate-900 dark:text-slate-50">{title}</h1>
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="truncate text-[21px] font-bold tracking-tight text-slate-900 dark:text-slate-50">{title}</h1>
+          {hotelIdentity.name && (
+            <>
+              <span className="hidden h-5 w-px shrink-0 bg-slate-200 sm:block dark:bg-white/15" />
+              <span className="hidden max-w-64 shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 py-1 pl-1 pr-3 shadow-sm sm:inline-flex dark:border-blue-900/50 dark:bg-blue-950/40" title={hotelIdentity.name}>
+                <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm dark:bg-slate-900">
+                  {hotelIdentity.logoDataUrl
+                    ? <img src={hotelIdentity.logoDataUrl} alt={`Logo ${hotelIdentity.name}`} className="size-full object-contain p-0.5" />
+                    : <Building2 className="size-4 text-blue-600 dark:text-blue-300" />}
+                </span>
+                <span className="min-w-0 text-left leading-tight">
+                  <span className="block text-[9px] font-bold uppercase tracking-wider text-blue-500">Khách sạn</span>
+                  <span className="block truncate text-xs font-extrabold text-blue-800 dark:text-blue-200">{hotelIdentity.name}</span>
+                </span>
+              </span>
+            </>
+          )}
+        </div>
         {subtitle && (
           <p className="mt-0.5 truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>
         )}

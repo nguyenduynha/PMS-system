@@ -385,7 +385,7 @@ export default function ServicesPage() {
 
           {/* Dialog Thêm/Sửa Dịch vụ */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="sm:max-w-[480px]">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[480px]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">
                   {editingService ? "Chỉnh sửa thông tin dịch vụ" : "Tạo dịch vụ mới"}

@@ -16,7 +16,7 @@ import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { CustomerAPI } from "@/services/customer.service";
 import { 
   Users, Search, Plus, Edit, Trash2, Loader2, Contact, 
-  MapPin, Eye, BookOpen, Sparkles, Receipt, Calendar, CreditCard, ChevronRight
+  MapPin, Eye, BookOpen, Sparkles, Receipt, Calendar, CreditCard, ChevronRight, Download
 } from "lucide-react";
 
 // Danh sách gợi ý quốc tịch phổ biến
@@ -216,6 +216,35 @@ export default function CustomersPage() {
   const totalRevenue = customers.reduce((sum, c) => sum + (c.totalSpend || 0), 0);
   const vipCount = customers.filter(c => (c.bookingCount || 0) >= 5).length;
 
+  const exportCustomersExcel = async () => {
+    if (!filteredCustomers.length) {
+      toast.error("Không có khách hàng để xuất");
+      return;
+    }
+    try {
+      const XLSX = await import("xlsx");
+      const rows = filteredCustomers.map((customer, index) => ({
+        "STT": index + 1,
+        "Họ và tên": customer.fullName,
+        "Số điện thoại": customer.phoneNumber,
+        "Email": customer.email || "",
+        "Quốc tịch": customer.nationality || "",
+        "CCCD / Hộ chiếu": customer.identityCard || "",
+        "Số lần đặt": customer.bookingCount || 0,
+        "Tổng chi tiêu (VNĐ)": Number(customer.totalSpend || 0),
+        "Ghi chú": customer.notes || "",
+      }));
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      sheet["!cols"] = [6, 24, 16, 28, 16, 20, 12, 20, 30].map(wch => ({ wch }));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, "Khách hàng");
+      XLSX.writeFile(workbook, `Danh_sach_khach_hang_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Đã xuất ${rows.length} khách hàng ra Excel`);
+    } catch {
+      toast.error("Không thể xuất danh sách khách hàng");
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-muted/40">
       <AppSidebar />
@@ -234,9 +263,14 @@ export default function CustomersPage() {
                 Lưu trữ hồ sơ khách hàng, tra cứu nhanh lịch sử lưu trú và theo dõi doanh thu tích lũy.
               </p>
             </div>
-            {canCreateCustomer && <Button onClick={() => openForm()} className="bg-blue-600 hover:bg-blue-700 shadow-md">
-              <Plus className="mr-2 size-4" /> Thêm khách hàng
-            </Button>}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={exportCustomersExcel} disabled={loading || !filteredCustomers.length}>
+                <Download className="mr-2 size-4" /> Xuất Excel
+              </Button>
+              {canCreateCustomer && <Button onClick={() => openForm()} className="bg-blue-600 hover:bg-blue-700 shadow-md">
+                <Plus className="mr-2 size-4" /> Thêm khách hàng
+              </Button>}
+            </div>
           </div>
 
           {/* Stats Cards */}

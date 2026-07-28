@@ -30,6 +30,25 @@ export const BookingController = {
     }
   },
 
+  updateGuest: async (req: Request, res: Response) => {
+    try {
+      const { customerName, customerPhone, customerEmail, nationality, guests } = req.body;
+      if (!String(customerName || "").trim()) return res.status(400).json({ message: "Tên khách không được bỏ trống" });
+      if (!String(customerPhone || "").trim()) return res.status(400).json({ message: "Số điện thoại không được bỏ trống" });
+      if (!Number.isInteger(Number(guests)) || Number(guests) < 1) return res.status(400).json({ message: "Số khách phải lớn hơn 0" });
+      const updated = await BookingService.updateBookingGuest(req.params.id, {
+        customerName: String(customerName).trim(),
+        customerPhone: String(customerPhone).trim(),
+        customerEmail: String(customerEmail || "").trim(),
+        nationality: String(nationality || "Việt Nam").trim(),
+        guests: Number(guests),
+      });
+      res.json({ message: "Cập nhật thông tin khách thành công", data: updated });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
   // 3. Cập nhật trạng thái đặt phòng
   updateStatus: async (req: AuthRequest, res: Response) => {
     try {

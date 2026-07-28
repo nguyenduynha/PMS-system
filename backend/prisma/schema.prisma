@@ -351,6 +351,14 @@ model HotelProfile {
   ownerPhone      String   @default("") @map("owner_phone") @db.VarChar(30)
   ownerIdentity   String   @default("") @map("owner_identity") @db.VarChar(50)
   logoDataUrl     String?  @map("logo_data_url") @db.Text
+  defaultCheckInTime  String  @default("14:00") @map("default_check_in_time") @db.VarChar(5)
+  defaultCheckOutTime String  @default("12:00") @map("default_check_out_time") @db.VarChar(5)
+  freeCancellationHours Int   @default(24) @map("free_cancellation_hours")
+  allowEarlyCheckIn    Boolean @default(true) @map("allow_early_check_in")
+  allowLateCheckOut    Boolean @default(true) @map("allow_late_check_out")
+  earlyCheckInFee      Decimal @default(100000) @map("early_check_in_fee") @db.Decimal(12, 2)
+  lateCheckOutFee      Decimal @default(150000) @map("late_check_out_fee") @db.Decimal(12, 2)
+  extraGuestFee        Decimal @default(200000) @map("extra_guest_fee") @db.Decimal(12, 2)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { API_BASE_URL } from "@/lib/app-config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DoorOpen, Wrench, Wifi, Loader2, Plus, Trash2, ConciergeBell, Receipt, Calendar, DollarSign, AlertTriangle, LogIn, LogOut } from "lucide-react";
+import { DoorOpen, Wrench, Wifi, Loader2, Plus, Trash2, ConciergeBell, Receipt, Calendar, DollarSign, AlertTriangle, LogIn, LogOut, BedDouble, Users, Share2, CreditCard, UserRound, Phone, Mail, MapPin, Pencil, Save } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/mock-data";
 import type { RoomWithType, MaintenanceRecordWithDetails, Amenity } from "@/lib/types";
 import { getBookingStatusConfig, getOverdueLabel } from "@/lib/booking-status";
+import { cn } from "@/lib/utils";
 
 import { RoomsTab } from "./rooms/rooms-tab"; 
 import { MaintenanceTab } from "./maintenance/maintenance-tab";
@@ -61,6 +62,7 @@ export default function RoomsPage() {
   const canCheckIn = hasPermission(user, "BOOKING_CHECK_IN");
   const canCheckOut = hasPermission(user, "BOOKING_CHECK_OUT");
   const canCancelBooking = hasPermission(user, "BOOKING_CANCEL");
+  const canUpdateBooking = hasPermission(user, "BOOKING_UPDATE");
   const [rooms, setRooms] = useState<RoomWithType[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecordWithDetails[]>([]);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
@@ -100,6 +102,9 @@ export default function RoomsPage() {
   const [quickPayAmount, setQuickPayAmount] = useState(0);
   const [quickPayMethod, setQuickPayMethod] = useState("CASH");
   const [quickPayNote, setQuickPayNote] = useState("Thanh toán nhanh");
+  const [editingGuest, setEditingGuest] = useState(false);
+  const [savingGuest, setSavingGuest] = useState(false);
+  const [guestEditForm, setGuestEditForm] = useState({ customerName: "", customerPhone: "", customerEmail: "", nationality: "Việt Nam", guests: 1 });
 
   // States cho tính năng Đặt phòng nhanh (Quick Booking)
   const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
@@ -430,16 +435,13 @@ export default function RoomsPage() {
     }
   };
 
-  const handleTimelineEmptySlotClick = (roomId: string, checkInDate: Date) => {
+  const handleTimelineEmptySlotClick = (roomId: string, checkInDate: Date, checkOutDate: Date) => {
     if (checkInDate < new Date()) {
       toast.error("Không thể tạo đặt phòng trước thời gian hiện tại.");
       return;
     }
     const room = rooms.find((item) => item.id === roomId);
     if (!room || room.status === "MAINTENANCE") return;
-
-    const checkOutDate = new Date(checkInDate);
-    checkOutDate.setDate(checkOutDate.getDate() + 1);
 
     preserveTimelineRange.current = true;
     setQuickBookingRoom(room);
@@ -459,11 +461,56 @@ export default function RoomsPage() {
     setIsQuickBookingOpen(true);
   };
 
-  const handleTimelineBookingClick = (bookingId: string) => {
+  const handleTimelineBookingClick = async (bookingId: string) => {
     const booking = rooms
       .flatMap((room: any) => room.calendarBookings || room.bookings || [])
       .find((item: any) => item.id === bookingId);
-    if (booking) setSelectedTimelineBooking(booking);
+    if (!booking) return;
+    const room = rooms.find((item: any) => item.id === booking.roomId);
+    if (booking.status === "CHECKED_IN" && room) {
+      const operationalRoom = {
+        ...room,
+        currentBooking: booking,
+        bookings: [booking],
+      } as RoomWithType;
+      await handleRoomClick(operationalRoom);
+      return;
+    }
+    setSelectedTimelineBooking(booking);
+  };
+
+  const beginGuestEdit = () => {
+    const booking = selectedOccupiedRoom?.bookings?.[0];
+    if (!booking) return;
+    setGuestEditForm({
+      customerName: booking.customerName || "",
+      customerPhone: booking.customerPhone || "",
+      customerEmail: booking.customerEmail || "",
+      nationality: booking.nationality || "Việt Nam",
+      guests: Number(booking.guests) || 1,
+    });
+    setEditingGuest(true);
+  };
+
+  const handleSaveGuest = async () => {
+    const booking = selectedOccupiedRoom?.bookings?.[0];
+    if (!booking) return;
+    if (!guestEditForm.customerName.trim() || !guestEditForm.customerPhone.trim()) {
+      toast.error("Vui lòng nhập tên và số điện thoại khách");
+      return;
+    }
+    try {
+      setSavingGuest(true);
+      await BookingAPI.updateBookingGuest(booking.id, guestEditForm);
+      const updatedRooms = await loadData();
+      if (updatedRooms) setSelectedOccupiedRoom(updatedRooms.find((room: RoomWithType) => room.id === selectedOccupiedRoom.id) || null);
+      setEditingGuest(false);
+      toast.success("Đã cập nhật thông tin khách");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể cập nhật thông tin khách");
+    } finally {
+      setSavingGuest(false);
+    }
   };
 
   const handleTimelineCheckIn = async () => {
@@ -926,25 +973,88 @@ export default function RoomsPage() {
       </div>
 
       <Dialog open={!!selectedTimelineBooking} onOpenChange={(open) => !open && setSelectedTimelineBooking(null)}>
-        <DialogContent variant="right" className="sm:max-w-[500px]">
-          <DialogHeader className="border-b p-6 pr-14">
+        <DialogContent variant="right" className="overflow-hidden sm:max-w-[1050px]">
+          <DialogHeader className="border-b px-6 py-4 pr-14">
             <DialogTitle>Chi tiết đặt phòng</DialogTitle>
-            <DialogDescription>Bấm vào booking để xem khách; vùng trống mới dùng để tạo booking.</DialogDescription>
+            <DialogDescription>Thông tin lưu trú và các khoản phát sinh của đặt phòng.</DialogDescription>
           </DialogHeader>
-          {selectedTimelineBooking && <div className="space-y-4 p-6">
-            <div className="rounded-2xl border bg-slate-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Khách lưu trú</p>
-              <p className="mt-1 text-xl font-bold">{selectedTimelineBooking.customerName}</p>
-              <p className="mt-1 text-sm text-slate-600">{selectedTimelineBooking.customerPhone || "Chưa có số điện thoại"}</p>
-            </div>
-            <div className="divide-y rounded-2xl border px-4 text-sm">
-              <div className="flex justify-between py-3"><span className="text-muted-foreground">Mã booking</span><strong>#{selectedTimelineBooking.id}</strong></div>
-              <div className="flex justify-between py-3"><span className="text-muted-foreground">Nhận phòng</span><strong>{formatDate(selectedTimelineBooking.checkInDate)}</strong></div>
-              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trả phòng</span><strong>{formatDate(selectedTimelineBooking.checkOutDate)}</strong></div>
-              <div className="flex justify-between py-3"><span className="text-muted-foreground">Trạng thái</span><Badge className={["CHECKED_OUT", "COMPLETED"].includes(selectedTimelineBooking.status) ? "bg-slate-500 text-white" : getBookingStatusConfig(selectedTimelineBooking.status).timelineClass}>{getBookingStatusConfig(selectedTimelineBooking.status).label}</Badge></div>
-              {selectedTimelineBooking.status === "NO_SHOW" && <div className="flex justify-between py-3 font-semibold text-[#B052C0]"><span>Khách chưa đến</span><span>{getOverdueLabel(selectedTimelineBooking.checkInDate)}</span></div>}
-            </div>
-          </div>}
+          {selectedTimelineBooking && (() => {
+            const booking = selectedTimelineBooking;
+            const room = rooms.find((item) => item.id === booking.roomId) || booking.room;
+            const checkIn = new Date(booking.checkInDate);
+            const checkOut = new Date(booking.checkOutDate);
+            const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86_400_000));
+            const bookingServices = booking.bookingServices || booking.services || [];
+            const bookingCode = booking.bookingCode || `BK-${String(booking.id).slice(-8).toUpperCase()}`;
+            const paidAmount = booking.invoice?.payments?.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0) || 0;
+            const invoiceTotal = Number(booking.invoice?.totalAmount || booking.totalAmount || 0);
+            const isPaid = booking.paymentStatus === "PAID" || booking.invoice?.status === "PAID" || (invoiceTotal > 0 && paidAmount >= invoiceTotal);
+            const InfoRow = ({ label, value, valueClassName }: { label: string; value: React.ReactNode; valueClassName?: string }) => (
+              <div className="grid grid-cols-[102px_minmax(0,1fr)] gap-2 text-sm">
+                <span className="text-muted-foreground">{label}</span>
+                <span className={cn("min-w-0 font-medium text-slate-800 dark:text-slate-100", valueClassName)}>{value || "-"}</span>
+              </div>
+            );
+            return <Tabs defaultValue="room-info" className="flex min-h-0 flex-1 flex-col">
+              <TabsList className="h-12 w-full justify-start rounded-none border-b bg-transparent px-5 py-0">
+                <TabsTrigger value="room-info" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50/60 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><BedDouble className="mr-2 size-4" />Thông tin phòng</TabsTrigger>
+                <TabsTrigger value="guests" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><Users className="mr-2 size-4" />Khách lưu trú</TabsTrigger>
+                <TabsTrigger value="services" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><Share2 className="mr-2 size-4" />Dịch vụ</TabsTrigger>
+                <TabsTrigger value="payment" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><CreditCard className="mr-2 size-4" />Thông tin thanh toán</TabsTrigger>
+              </TabsList>
+
+              <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/30 p-5 dark:bg-slate-950">
+                <TabsContent value="room-info" className="mt-0">
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(270px,1fr)]">
+                    <div className="space-y-4">
+                      <fieldset className="rounded-xl border bg-background px-5 pb-5 shadow-sm">
+                        <legend className="px-2 text-sm font-semibold">Thông tin phòng</legend>
+                        <div className="mt-3 grid gap-x-8 gap-y-3 md:grid-cols-2">
+                          <div className="space-y-3">
+                            <InfoRow label="Loại phòng" value={room?.roomType?.name || "Chưa phân loại"} />
+                            <InfoRow label="Nhận phòng" value={`${checkIn.toLocaleDateString("vi-VN")} (${nights} đêm)`} />
+                            <InfoRow label="Trả phòng" value={checkOut.toLocaleDateString("vi-VN")} />
+                            <InfoRow label="Mã đặt phòng" value={<span className="font-mono text-xs">{bookingCode}</span>} />
+                            <InfoRow label="Số khách" value={`${booking.guests || 1} khách`} />
+                          </div>
+                          <div className="space-y-3">
+                            <InfoRow label="Phòng" value={room?.roomNumber || booking.roomNumber || "-"} />
+                            <InfoRow label="Giờ đến" value={checkIn.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} />
+                            <InfoRow label="Giờ đi" value={checkOut.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} />
+                            <InfoRow label="Tình trạng" value={<Badge className={cn("border-0 text-[10px]", ["CHECKED_OUT", "COMPLETED"].includes(booking.status) ? "bg-slate-500 text-white" : getBookingStatusConfig(booking.status).timelineClass)}>{getBookingStatusConfig(booking.status).label}</Badge>} />
+                            <InfoRow label="Ghi chú" value={booking.note || "-"} />
+                          </div>
+                        </div>
+                        {booking.status === "NO_SHOW" && <div className="mt-4 rounded-md bg-purple-50 px-3 py-2 text-xs font-semibold text-[#B052C0]">Khách chưa đến · {getOverdueLabel(booking.checkInDate)}</div>}
+                      </fieldset>
+
+                    </div>
+
+                    <fieldset className="h-fit rounded-xl border bg-background px-5 pb-5 shadow-sm">
+                      <legend className="px-2 text-sm font-semibold">Khách hàng</legend>
+                      <div className="mt-3 flex items-center gap-3 border-b pb-4">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-blue-50 text-blue-600"><UserRound className="size-5" /></div>
+                        <div><p className="font-semibold text-blue-600">{booking.customerName}</p><p className="text-xs text-muted-foreground">Khách chính</p></div>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <InfoRow label="SĐT" value={booking.customerPhone || "-"} />
+                        <InfoRow label="Email" value={booking.customerEmail || "-"} />
+                        <InfoRow label="Quốc gia" value={booking.nationality || "Việt Nam"} />
+                        <InfoRow label="Ngôn ngữ" value={booking.language || "-"} />
+                        <InfoRow label="Số định danh" value={booking.idNumber || "-"} />
+                        <InfoRow label="Số lần lưu trú" value={booking.customer?.stayCount || "-"} />
+                        <InfoRow label="SL ngày đã ở" value={booking.customer?.totalStayDays || "-"} />
+                      </div>
+                    </fieldset>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="guests" className="mt-0"><div className="rounded-xl border bg-background p-5 shadow-sm"><h3 className="font-semibold">Khách lưu trú</h3><div className="mt-4 flex items-center gap-4 rounded-lg border p-4"><div className="flex size-11 items-center justify-center rounded-full bg-blue-50 text-blue-600"><UserRound /></div><div className="flex-1"><p className="font-semibold">{booking.customerName}</p><div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Phone className="size-3" />{booking.customerPhone || "-"}</span><span className="flex items-center gap-1"><Mail className="size-3" />{booking.customerEmail || "-"}</span><span className="flex items-center gap-1"><MapPin className="size-3" />{booking.nationality || "Việt Nam"}</span></div></div><Badge variant="outline">Khách chính</Badge></div></div></TabsContent>
+                <TabsContent value="services" className="mt-0"><div className="rounded-xl border bg-background p-5 shadow-sm"><h3 className="font-semibold">Dịch vụ đã sử dụng</h3>{bookingServices.length ? <div className="mt-4 divide-y">{bookingServices.map((item: any, index: number) => <div key={item.id || index} className="flex items-center justify-between py-3 text-sm"><div><p className="font-medium">{item.service?.name || item.name || "Dịch vụ"}</p><p className="text-xs text-muted-foreground">Số lượng: {item.quantity || 1}</p></div><strong>{formatCurrency(Number(item.totalAmount || item.price || 0))}</strong></div>)}</div> : <p className="mt-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Chưa có dịch vụ phát sinh.</p>}</div></TabsContent>
+                <TabsContent value="payment" className="mt-0"><div className="rounded-xl border bg-background p-5 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Tổng giá trị đặt phòng</p><p className="mt-1 text-2xl font-bold text-blue-600">{formatCurrency(invoiceTotal)}</p></div><Badge className={isPaid ? "bg-emerald-600" : "bg-rose-500"}>{isPaid ? "Đã thanh toán" : "Chưa thanh toán"}</Badge></div><div className="mt-5 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2"><InfoRow label="Tiền phòng" value={formatCurrency(Number(booking.roomAmount || booking.totalAmount || 0))} /><InfoRow label="Dịch vụ" value={formatCurrency(bookingServices.reduce((sum: number, item: any) => sum + Number(item.totalAmount || 0), 0))} /><InfoRow label="Đã thanh toán" value={formatCurrency(paidAmount)} /><InfoRow label="Còn lại" value={formatCurrency(Math.max(0, invoiceTotal - paidAmount))} /></div></div></TabsContent>
+              </div>
+            </Tabs>;
+          })()}
           <DialogFooter className="border-t bg-muted/20 p-5">
             <Button variant="outline" onClick={() => setSelectedTimelineBooking(null)}>Đóng</Button>
             {selectedTimelineBooking && ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(selectedTimelineBooking.status) && canCancelBooking && (
@@ -952,7 +1062,15 @@ export default function RoomsPage() {
                 {selectedTimelineBooking.status === "NO_SHOW" ? "Xử lý No-show & giải phóng" : "Hủy booking"}
               </Button>
             )}
-            {selectedTimelineBooking && ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(selectedTimelineBooking.status) && canCheckIn && new Date() >= new Date(selectedTimelineBooking.checkInDate) && (
+            {selectedTimelineBooking && ["BOOKED", "PENDING", "CONFIRMED", "EXPECTED_ARRIVAL", "NO_SHOW"].includes(selectedTimelineBooking.status) && canCheckIn && (() => {
+              const now = new Date();
+              const checkIn = new Date(selectedTimelineBooking.checkInDate);
+              return now >= checkIn || (
+                now.getFullYear() === checkIn.getFullYear() &&
+                now.getMonth() === checkIn.getMonth() &&
+                now.getDate() === checkIn.getDate()
+              );
+            })() && (
               <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleTimelineCheckIn} disabled={timelineCheckInSubmitting}>
                 {timelineCheckInSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}Check-in
               </Button>
@@ -962,20 +1080,25 @@ export default function RoomsPage() {
       </Dialog>
 
       {/* Dialog Quản lý Operations phòng */}
-      <Dialog open={isServiceDialogOpen} onOpenChange={setIsServiceDialogOpen}>
-        <DialogContent variant="right" className="overflow-hidden sm:max-w-[900px]">
-          <DialogHeader className="border-b p-6 pb-4 flex flex-row items-center justify-between">
+      <Dialog open={isServiceDialogOpen} onOpenChange={(open) => { setIsServiceDialogOpen(open); if (!open) setEditingGuest(false); }}>
+        <DialogContent variant="right" className="overflow-hidden sm:max-w-[1050px]">
+          <DialogHeader className="flex flex-row items-center justify-between border-b px-6 py-4 pr-14">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                <ConciergeBell className="size-5" />
+              <div className="flex size-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40">
+                <BedDouble className="size-5" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold">
-                  Thao tác phòng {selectedOccupiedRoom?.roomNumber}
+                <DialogTitle className="text-lg font-bold">
+                  Thông tin phòng {selectedOccupiedRoom?.roomNumber}
                 </DialogTitle>
                 {selectedOccupiedRoom?.bookings?.[0] && (
-                  <DialogDescription className="text-muted-foreground mt-1 text-sm">
-                    Khách hàng: <span className="font-semibold text-foreground">{selectedOccupiedRoom.bookings[0].customerName}</span> | SĐT: <span className="font-semibold text-foreground">{selectedOccupiedRoom.bookings[0].customerPhone}</span>
+                  <DialogDescription className="mt-1 text-xs text-muted-foreground">
+                    {selectedOccupiedRoom.roomType?.name} · <span className="font-medium text-foreground">{selectedOccupiedRoom.bookings[0].customerName}</span>
+                  </DialogDescription>
+                )}
+                {!selectedOccupiedRoom?.bookings?.[0] && (
+                  <DialogDescription className="sr-only">
+                    Thông tin chi tiết về phòng và các thao tác quản lý.
                   </DialogDescription>
                 )}
               </div>
@@ -983,14 +1106,15 @@ export default function RoomsPage() {
           </DialogHeader>
 
           <Tabs value={operationTab} onValueChange={setOperationTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <TabsList className="grid w-full max-w-lg grid-cols-3 mx-6 mt-4">
-              <TabsTrigger value="stay-info">👤 Khách & Đổi/Gia hạn</TabsTrigger>
-              <TabsTrigger value="services">🛎️ Dịch vụ phòng</TabsTrigger>
-              <TabsTrigger value="quick-pay">💵 Thanh toán nhanh</TabsTrigger>
+            <TabsList className="h-12 w-full justify-start rounded-none border-b bg-transparent px-5 py-0">
+              <TabsTrigger value="stay-info" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50/60 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><BedDouble className="mr-2 size-4" />Thông tin phòng</TabsTrigger>
+              <TabsTrigger value="guest-info" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><Users className="mr-2 size-4" />Khách lưu trú</TabsTrigger>
+              <TabsTrigger value="services" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><Share2 className="mr-2 size-4" />Dịch vụ</TabsTrigger>
+              <TabsTrigger value="quick-pay" className="h-12 rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"><CreditCard className="mr-2 size-4" />Thông tin thanh toán</TabsTrigger>
             </TabsList>
 
             {/* TAB 1: THÔNG TIN KHÁCH & GIA HẠN/ĐỔI PHÒNG */}
-            <TabsContent value="stay-info" className="flex-1 overflow-y-auto p-6 min-h-0 space-y-6">
+            <TabsContent value="stay-info" className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-slate-50/30 p-5 dark:bg-slate-950">
               {selectedOccupiedRoom?.bookings?.[0] && (() => {
                 const booking = selectedOccupiedRoom.bookings[0];
                 const bookingCheckIn = new Date(booking.checkInDate);
@@ -1007,14 +1131,14 @@ export default function RoomsPage() {
                 });
 
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(340px,1fr)]">
                     {/* Thông tin đặt phòng */}
-                    <div className="space-y-4 border rounded-xl p-5 bg-card/50 shadow-xs">
-                      <h3 className="font-bold text-base text-primary border-b pb-2 flex items-center gap-2">
-                        <span>📋</span> Thông tin lưu trú
+                    <div className="space-y-4 rounded-xl border bg-background p-5 shadow-sm">
+                      <h3 className="flex items-center gap-2 border-b pb-3 text-sm font-semibold">
+                        <BedDouble className="size-4 text-blue-600" /> Thông tin lưu trú
                       </h3>
                       
-                      <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                      <div className="grid grid-cols-[130px_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm">
                         <div className="text-muted-foreground">Khách hàng:</div>
                         <div className="font-semibold">{booking.customerName}</div>
                         
@@ -1054,9 +1178,9 @@ export default function RoomsPage() {
                     {/* Thao tác gia hạn & đổi phòng */}
                     <div className="space-y-6">
                       {/* Gia hạn phòng */}
-                      <div className="border rounded-xl p-5 bg-card/50 shadow-xs space-y-4">
-                        <h3 className="font-bold text-base text-primary border-b pb-2 flex items-center gap-2">
-                          <span>📅</span> Gia hạn lưu trú (Đổi ngày trả)
+                      <div className="space-y-4 rounded-xl border bg-background p-5 shadow-sm">
+                        <h3 className="flex items-center gap-2 border-b pb-3 text-sm font-semibold">
+                          <Calendar className="size-4 text-blue-600" /> Gia hạn lưu trú
                         </h3>
                         <div className="space-y-3 text-left">
                           <Label htmlFor="extend-checkout" className="text-xs font-semibold">Giờ & ngày trả phòng mới</Label>
@@ -1081,9 +1205,9 @@ export default function RoomsPage() {
                       </div>
 
                       {/* Đổi phòng */}
-                      <div className="border rounded-xl p-5 bg-card/50 shadow-xs space-y-4">
-                        <h3 className="font-bold text-base text-primary border-b pb-2 flex items-center gap-2">
-                          <span>🔄</span> Đổi phòng (Chuyển phòng)
+                      <div className="space-y-4 rounded-xl border bg-background p-5 shadow-sm">
+                        <h3 className="flex items-center gap-2 border-b pb-3 text-sm font-semibold">
+                          <DoorOpen className="size-4 text-blue-600" /> Đổi phòng
                         </h3>
                         <div className="space-y-3 text-left">
                           <Label htmlFor="swap-room-select" className="text-xs font-semibold">Chọn phòng trống nhận khách</Label>
@@ -1122,8 +1246,51 @@ export default function RoomsPage() {
               })()}
             </TabsContent>
 
+            <TabsContent value="guest-info" className="min-h-0 flex-1 overflow-y-auto bg-slate-50/30 p-5 dark:bg-slate-950">
+              {selectedOccupiedRoom?.bookings?.[0] && (() => {
+                const booking = selectedOccupiedRoom.bookings[0];
+                return <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,1fr)]">
+                  <div className="rounded-xl border bg-background p-5 shadow-sm">
+                    <h3 className="border-b pb-3 text-sm font-semibold">Danh sách khách lưu trú</h3>
+                    <div className="mt-4 flex items-center gap-4 rounded-lg border p-4">
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40"><UserRound className="size-5" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">{booking.customerName}</p>
+                        <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><Phone className="size-3" />{booking.customerPhone || "-"}</span>
+                          <span className="flex items-center gap-1"><Mail className="size-3" />{booking.customerEmail || "-"}</span>
+                          <span className="flex items-center gap-1"><MapPin className="size-3" />{booking.nationality || "Việt Nam"}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">Khách chính</Badge>
+                    </div>
+                  </div>
+                  <fieldset className="h-fit rounded-xl border bg-background px-5 pb-5 shadow-sm">
+                    <legend className="px-2 text-sm font-semibold">Thông tin khách hàng</legend>
+                    {editingGuest ? <div className="mt-3 space-y-3">
+                      <div className="space-y-1.5"><Label htmlFor="guest-name" className="text-xs">Tên đầy đủ *</Label><Input id="guest-name" value={guestEditForm.customerName} onChange={(e) => setGuestEditForm({ ...guestEditForm, customerName: e.target.value })} /></div>
+                      <div className="space-y-1.5"><Label htmlFor="guest-phone" className="text-xs">Số điện thoại *</Label><Input id="guest-phone" value={guestEditForm.customerPhone} onChange={(e) => setGuestEditForm({ ...guestEditForm, customerPhone: e.target.value })} /></div>
+                      <div className="space-y-1.5"><Label htmlFor="guest-email" className="text-xs">Email</Label><Input id="guest-email" type="email" value={guestEditForm.customerEmail} onChange={(e) => setGuestEditForm({ ...guestEditForm, customerEmail: e.target.value })} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5"><Label htmlFor="guest-country" className="text-xs">Quốc gia</Label><Input id="guest-country" value={guestEditForm.nationality} onChange={(e) => setGuestEditForm({ ...guestEditForm, nationality: e.target.value })} /></div>
+                        <div className="space-y-1.5"><Label htmlFor="guest-count" className="text-xs">Số khách *</Label><Input id="guest-count" type="number" min={1} value={guestEditForm.guests} onChange={(e) => setGuestEditForm({ ...guestEditForm, guests: Math.max(1, Number(e.target.value) || 1) })} /></div>
+                      </div>
+                      <div className="flex justify-end gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => setEditingGuest(false)} disabled={savingGuest}>Hủy</Button><Button size="sm" onClick={handleSaveGuest} disabled={savingGuest}>{savingGuest ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}Lưu thay đổi</Button></div>
+                    </div> : <div className="mt-3 space-y-3 text-sm">
+                      <div className="grid grid-cols-[110px_1fr] gap-2"><span className="text-muted-foreground">Tên đầy đủ</span><span className="font-medium text-blue-600">{booking.customerName}</span></div>
+                      <div className="grid grid-cols-[110px_1fr] gap-2"><span className="text-muted-foreground">SĐT</span><span className="font-medium">{booking.customerPhone || "-"}</span></div>
+                      <div className="grid grid-cols-[110px_1fr] gap-2"><span className="text-muted-foreground">Email</span><span className="truncate font-medium">{booking.customerEmail || "-"}</span></div>
+                      <div className="grid grid-cols-[110px_1fr] gap-2"><span className="text-muted-foreground">Quốc gia</span><span className="font-medium">{booking.nationality || "Việt Nam"}</span></div>
+                      <div className="grid grid-cols-[110px_1fr] gap-2"><span className="text-muted-foreground">Số khách</span><span className="font-medium">{booking.guests || 1} khách</span></div>
+                      {canUpdateBooking && <Button variant="outline" size="sm" className="mt-2 w-full text-blue-600" onClick={beginGuestEdit}><Pencil className="mr-2 size-3.5" />Chỉnh sửa thông tin</Button>}
+                    </div>}
+                  </fieldset>
+                </div>;
+              })()}
+            </TabsContent>
+
             {/* TAB 2: QUẢN LÝ DỊCH VỤ */}
-            <TabsContent value="services" className="flex-1 overflow-hidden flex flex-col md:flex-row gap-6 p-6 min-h-0">
+            <TabsContent value="services" className="min-h-0 flex-1 flex-col gap-6 overflow-hidden bg-slate-50/30 p-5 data-[state=active]:flex md:flex-row dark:bg-slate-950">
               {/* Used services */}
               <div className="flex-1 flex flex-col min-h-0">
                 <h3 className="font-semibold text-base mb-3 flex items-center gap-2 text-primary border-b pb-2">
@@ -1283,7 +1450,7 @@ export default function RoomsPage() {
             </TabsContent>
 
             {/* TAB 3: THANH TOÁN NHANH */}
-            <TabsContent value="quick-pay" className="flex-1 overflow-y-auto p-6 min-h-0">
+            <TabsContent value="quick-pay" className="min-h-0 flex-1 overflow-y-auto bg-slate-50/30 p-5 dark:bg-slate-950">
               {loadingInvoice ? (
                 <div className="flex h-48 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1462,7 +1629,7 @@ export default function RoomsPage() {
             </TabsContent>
           </Tabs>
 
-          <DialogFooter className="border-t p-6 bg-muted/10">
+          <DialogFooter className="border-t bg-background px-5 py-4">
             {selectedOccupiedRoom?.bookings?.[0]?.status === "CHECKED_IN" && canCheckOut && (
               <Button
                 className="bg-rose-600 text-white hover:bg-rose-700"

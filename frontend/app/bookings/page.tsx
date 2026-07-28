@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { RoomAPI } from "@/services/room.service";
 import { BookingAPI } from "@/services/booking.service";
+import { HotelProfileAPI } from "@/services/hotel-profile.service";
 import { InvoiceAPI } from "@/services/invoice.service";
 import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { API_BASE_URL } from "@/lib/app-config";
@@ -111,6 +112,7 @@ export default function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [operatingTimes, setOperatingTimes] = useState({ checkIn: "14:00", checkOut: "12:00" });
 
   const [formData, setFormData] = useState({
     customerName: "",
@@ -173,6 +175,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     loadData();
+    HotelProfileAPI.get().then(profile => setOperatingTimes({ checkIn: profile.defaultCheckInTime, checkOut: profile.defaultCheckOutTime })).catch(() => {});
 
     // Đọc query param 'search'
     const params = new URLSearchParams(window.location.search);
@@ -181,6 +184,25 @@ export default function BookingsPage() {
       setSearchQuery(search);
     }
   }, []);
+
+  const openNewBooking = () => {
+    const checkIn = new Date();
+    const [inHour, inMinute] = operatingTimes.checkIn.split(":").map(Number);
+    checkIn.setHours(inHour, inMinute, 0, 0);
+    const earliestCheckIn = new Date(Date.now() + 5 * 60_000);
+    earliestCheckIn.setSeconds(0, 0);
+    if (checkIn < earliestCheckIn) checkIn.setTime(earliestCheckIn.getTime());
+    const checkOut = new Date(checkIn);
+    checkOut.setDate(checkOut.getDate() + 1);
+    const [outHour, outMinute] = operatingTimes.checkOut.split(":").map(Number);
+    checkOut.setHours(outHour, outMinute, 0, 0);
+    const localValue = (date: Date) => {
+      const offset = date.getTimezoneOffset() * 60_000;
+      return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    };
+    setFormData(current => ({ ...current, checkInDate: localValue(checkIn), checkOutDate: localValue(checkOut) }));
+    setOpenBookingDialog(true);
+  };
   
   // Tự động xóa phòng đã chọn nếu người dùng thay đổi ngày dẫn đến phòng không còn trống
   useEffect(() => {
@@ -545,7 +567,7 @@ export default function BookingsPage() {
             </div>
 
             {canCreateBooking && (
-              <Button onClick={() => setOpenBookingDialog(true)}>
+              <Button onClick={openNewBooking}>
                 <Plus className="mr-2 size-4" />
                 Tạo đặt phòng
               </Button>
@@ -743,7 +765,7 @@ export default function BookingsPage() {
 
           {/* Dialog Tạo đặt phòng */}
           <Dialog open={openBookingDialog} onOpenChange={setOpenBookingDialog}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Tạo đặt phòng mới</DialogTitle>
               </DialogHeader>
@@ -971,7 +993,7 @@ export default function BookingsPage() {
 
           {/* Dialog Chi tiết Đặt phòng */}
           <Dialog open={openDetailDialog} onOpenChange={setOpenDetailDialog}>
-            <DialogContent variant="right" className="sm:max-w-[540px]">
+            <DialogContent aria-describedby={undefined} variant="right" className="sm:max-w-[540px]">
               <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-blue-50 to-cyan-50 p-6 pr-14 dark:from-blue-950/30 dark:to-cyan-950/20">
                 <div className="flex items-center gap-3">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
@@ -1062,7 +1084,7 @@ export default function BookingsPage() {
 
           {/* Dialog Thanh toán & Trả phòng */}
           <Dialog open={openCheckoutPaymentDialog} onOpenChange={setOpenCheckoutPaymentDialog}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
                   <span>💰</span> Hóa đơn thanh toán - Phòng {selectedBooking?.room?.roomNumber}
@@ -1191,7 +1213,7 @@ export default function BookingsPage() {
               setSelectedCancelBooking(null);
             }
           }}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2 text-destructive">
                   <XCircle className="size-5" /> Hủy đặt phòng
@@ -1272,7 +1294,7 @@ export default function BookingsPage() {
               setSelectedCheckInBooking(null);
             }
           }}>
-            <DialogContent variant="right" className="sm:max-w-[520px]">
+            <DialogContent aria-describedby={undefined} variant="right" className="sm:max-w-[520px]">
               <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-emerald-50 to-teal-50 p-6 pr-14 dark:from-emerald-950/30 dark:to-teal-950/20">
                 <div className="flex items-center gap-3">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
@@ -1370,7 +1392,7 @@ export default function BookingsPage() {
               setSelectedPaidCheckoutBooking(null);
             }
           }}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2 text-blue-600">
                   <LogOut className="size-5" /> Xác nhận trả phòng

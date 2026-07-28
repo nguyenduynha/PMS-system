@@ -6,6 +6,7 @@ const router = Router();
 
 router.get("/", authMiddleware, requirePermission("ROOM_VIEW"), RoomController.getRooms);
 router.get("/types", authMiddleware, requirePermission("ROOM_VIEW"), RoomController.getRoomTypes);
+router.put("/types/:id", authMiddleware, requirePermission("ROLE_ASSIGN_PERMISSION"), RoomController.updateRoomTypePricing);
 router.get("/housekeeping", authMiddleware, requirePermission("HOUSEKEEPING_VIEW"), RoomController.getRooms);
 router.put("/:id/housekeeping", authMiddleware, requirePermission("HOUSEKEEPING_UPDATE"), RoomController.updateHousekeeping);
 

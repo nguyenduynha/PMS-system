@@ -622,10 +622,10 @@ export default function AddUserPage() {
           subtitle="Tạo tài khoản và phân quyền chức vụ"
         />
 
-        <main className="flex flex-1 justify-center overflow-auto p-6">
+        <main className="flex flex-1 justify-center overflow-auto p-4">
           <form
             onSubmit={handleSubmit}
-            className="w-full max-w-4xl space-y-4"
+            className="w-full max-w-3xl space-y-3"
           >
             <Button
               type="button"
@@ -637,7 +637,7 @@ export default function AddUserPage() {
             </Button>
 
             <Card className="border-t-4 border-t-primary shadow-lg">
-              <CardHeader className="border-b bg-background">
+              <CardHeader className="border-b bg-background py-4">
                 <div className="flex items-center gap-3">
                   <div className="rounded-full bg-primary/10 p-2">
                     <UserPlus className="size-6 text-primary" />
@@ -656,14 +656,14 @@ export default function AddUserPage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-8 pt-6">
-                <div className="flex flex-col items-start gap-8 md:flex-row">
+              <CardContent className="space-y-5 pt-5">
+                <div className="flex flex-col items-start gap-5 md:flex-row">
                   <div className="flex flex-col items-center gap-4">
                     <Label className="font-medium">
                       Ảnh đại diện
                     </Label>
 
-                    <div className="group relative flex size-32 items-center justify-center overflow-hidden rounded-full border-2 border-dashed bg-muted">
+                    <div className="group relative flex size-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed bg-muted">
                       {formData.avatarUrl ? (
                         <>
                           <img
@@ -1033,14 +1033,16 @@ export default function AddUserPage() {
                     </p>
                   </div>
 
-                  <PermissionSelector
-                    value={formData.permissions}
-                    onChange={(permissions) => setFormData((previous) => ({ ...previous, permissions }))}
-                  />
+                  <div className="max-h-[420px] overflow-y-auto rounded-lg border bg-muted/10 p-2">
+                    <PermissionSelector
+                      value={formData.permissions}
+                      onChange={(permissions) => setFormData((previous) => ({ ...previous, permissions }))}
+                    />
+                  </div>
                 </div>
               </CardContent>
 
-              <CardFooter className="flex justify-between border-t bg-muted/10 p-6">
+              <CardFooter className="flex justify-between border-t bg-muted/10 p-4">
                 <Button
                   type="button"
                   variant="outline"

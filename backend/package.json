@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "postinstall": "prisma generate",
     "seed": "tsx prisma/seed.ts",
+    "seed:rooms": "tsx prisma/seed-rooms.ts",
     "seed:permissions": "tsx prisma/seed-permissions.ts"
   },
   "dependencies": {

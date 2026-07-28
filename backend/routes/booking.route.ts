@@ -7,6 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 router.get("/", requirePermission("BOOKING_VIEW"), BookingController.getBookings);
 router.post("/", requirePermission("BOOKING_CREATE"), BookingController.create);
+router.put("/:id/guest", requirePermission("BOOKING_UPDATE"), BookingController.updateGuest);
 router.put("/:id/status", requireBookingStatusPermission, BookingController.updateStatus);
 router.put("/:id/extend", requirePermission("BOOKING_EXTEND"), BookingController.extend);
 router.put("/:id/change-room", requirePermission("BOOKING_TRANSFER"), BookingController.changeRoom);

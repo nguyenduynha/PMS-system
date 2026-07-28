@@ -1003,7 +1003,7 @@ export default function InvoicesPage() {
 
       {/* VIEW INVOICE DETAIL & PRINT MODAL */}
       <Dialog open={openViewDialog} onOpenChange={setOpenViewDialog}>
-        <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto p-6">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader className="print:hidden">
             <DialogTitle>Chi tiết hóa đơn</DialogTitle>
           </DialogHeader>

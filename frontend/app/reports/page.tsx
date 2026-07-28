@@ -77,7 +77,7 @@ export default function ReportsPage() {
   const [reportRoomType, setReportRoomType] = useState("ALL");
   const [reportRoom, setReportRoom] = useState("ALL");
   const [reportUser, setReportUser] = useState("ALL");
-  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
+  const [exporting, setExporting] = useState<"excel" | "pdf" | "activity" | null>(null);
 
   const loadReportData = async () => {
     try {
@@ -322,6 +322,66 @@ export default function ReportsPage() {
       toast.success(`Đã xuất ${rows.length} booking ra ${format === "excel" ? "Excel" : "PDF"}`);
     } catch (error: any) {
       toast.error(error.message || "Không thể xuất báo cáo");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const exportUserActivityReport = async () => {
+    try {
+      setExporting("activity");
+      const [bookings, transactions] = await Promise.all([
+        BookingAPI.getBookings(),
+        FinanceAPI.getTransactions({ startDate: detailStartDate || undefined, endDate: detailEndDate || undefined }),
+      ]);
+      const start = detailStartDate ? new Date(`${detailStartDate}T00:00:00`) : null;
+      const end = detailEndDate ? new Date(`${detailEndDate}T23:59:59.999`) : null;
+      const inRange = (value: string) => {
+        const date = new Date(value);
+        return (!start || date >= start) && (!end || date <= end);
+      };
+      const bookingActions = bookings
+        .filter((booking: any) => booking.user && inRange(booking.createdAt))
+        .filter((booking: any) => reportUser === "ALL" || String(booking.userId) === reportUser)
+        .map((booking: any) => ({
+          time: booking.createdAt,
+          user: booking.user.fullName,
+          usercode: booking.user.usercode || booking.user.email || "",
+          action: "Tạo đặt phòng",
+          module: "Đặt phòng",
+          detail: `${booking.bookingCode || `BK-${booking.id}`} · ${booking.customerName} · Phòng ${booking.room?.roomNumber || ""}`,
+        }));
+      const financeActions = transactions
+        .filter((transaction: any) => transaction.createdBy && inRange(transaction.createdAt || transaction.date))
+        .filter((transaction: any) => reportUser === "ALL" || String(transaction.createdById) === reportUser)
+        .map((transaction: any) => ({
+          time: transaction.createdAt || transaction.date,
+          user: transaction.createdBy.fullName,
+          usercode: transaction.createdBy.email || "",
+          action: transaction.type === "INCOME" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi",
+          module: "Thu chi",
+          detail: `${transaction.code} · ${transaction.category} · ${formatCurrency(Number(transaction.amount))}`,
+        }));
+      const actions = [...bookingActions, ...financeActions].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      if (!actions.length) throw new Error("Không có thao tác người dùng phù hợp với bộ lọc");
+      const XLSX = await import("xlsx");
+      const rows = actions.map((action, index) => ({
+        "STT": index + 1,
+        "Thời gian": new Date(action.time).toLocaleString("vi-VN"),
+        "Người dùng": action.user,
+        "Tài khoản": action.usercode,
+        "Thao tác": action.action,
+        "Phân hệ": action.module,
+        "Chi tiết": action.detail,
+      }));
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      sheet["!cols"] = [6, 20, 24, 24, 24, 16, 55].map(wch => ({ wch }));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, "Thao tác người dùng");
+      XLSX.writeFile(workbook, `Bao_cao_thao_tac_nguoi_dung_${detailStartDate}_${detailEndDate}.xlsx`);
+      toast.success(`Đã xuất ${actions.length} thao tác người dùng`);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể xuất báo cáo thao tác người dùng");
     } finally {
       setExporting(null);
     }
@@ -596,6 +656,10 @@ export default function ReportsPage() {
                     <div className="space-y-1 text-left"><Label className="font-semibold">Nhân viên tạo</Label><Select value={reportUser} onValueChange={setReportUser}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả</SelectItem>{Array.from(new Map(reportBookings.filter(b => b.user).map(b => [String(b.userId), b.user.fullName])).entries()).map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select></div>
                     <Button onClick={() => exportCurrentBookingReport("pdf")} variant="outline" className="border-rose-500 text-rose-600 hover:bg-rose-50 font-semibold h-9" disabled={!!exporting}>
                       {exporting === "pdf" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-4" />}Xuất PDF
+                    </Button>
+                    <Button onClick={exportUserActivityReport} variant="outline" className="border-violet-500 text-violet-600 hover:bg-violet-50 font-semibold h-9 sm:col-span-2" disabled={!!exporting}>
+                      {exporting === "activity" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}
+                      Xuất báo cáo thao tác người dùng
                     </Button>
                   </div>
 
