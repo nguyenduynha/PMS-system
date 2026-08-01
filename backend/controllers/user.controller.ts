@@ -182,6 +182,38 @@ export const UserController = {
     }
   },
 
+  changeOwnPassword: async (req: AuthRequest, res: Response) => {
+    try {
+      const authUser = req.user;
+      if (!authUser) {
+        return res.status(401).json({ message: "Yêu cầu đăng nhập trước" });
+      }
+
+      if (authUser.id === "0" || authUser.id === "admin-env") {
+        return res.status(400).json({
+          message: "Tài khoản quản trị từ biến môi trường không thể đổi mật khẩu tại đây",
+        });
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "Xác nhận mật khẩu mới không khớp" });
+      }
+
+      await UserService.changeOwnPassword(
+        authUser.id,
+        String(currentPassword || ""),
+        String(newPassword || "")
+      );
+
+      return res.status(200).json({ message: "Đổi mật khẩu thành công" });
+    } catch (error: any) {
+      return res.status(400).json({
+        message: error?.message || "Không thể đổi mật khẩu",
+      });
+    }
+  },
+
   // 6. Cập nhật tài khoản
   update: async (req: AuthRequest, res: Response) => {
   try {
@@ -226,6 +258,14 @@ export const UserController = {
     const updateData = {
       ...req.body,
     };
+
+    // Khi tự sửa hồ sơ, chỉ cho phép các trường thông tin cá nhân an toàn.
+    if (isEditingSelf) {
+      const allowedSelfFields = new Set(["fullName", "phoneNumber", "avatarUrl"]);
+      Object.keys(updateData).forEach((key) => {
+        if (!allowedSelfFields.has(key)) delete (updateData as any)[key];
+      });
+    }
 
     if (updateData.role) {
       updateData.role = requestedRole;

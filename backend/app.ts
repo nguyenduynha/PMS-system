@@ -13,8 +13,37 @@ import inventoryRoutes from "./routes/inventory.route";
 import customerRoutes from "./routes/customer.route";
 import roleRoutes from "./routes/role.route";
 import hotelProfileRoutes from "./routes/hotel-profile.route";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 
 const app: Application = express();
+
+const swaggerDocs = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Hotel Management API",
+      version: "1.0.0",
+      description: "API documentation for the Hotel Management system",
+    },
+    servers: [
+      {
+        url: "http://localhost:5000",
+        description: "Local development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+  },
+  apis: ["./routes/*.ts"],
+});
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
@@ -58,6 +87,10 @@ app.use(
 );
 
 app.use("/public", express.static("public"));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.get("/api-docs-json", (_req, res) => {
+  res.status(200).json(swaggerDocs);
+});
 
 // API routes
 app.use("/api/users", userRoutes);
@@ -95,5 +128,6 @@ app.use((_req, res) => {
     message: "API route không tồn tại",
   });
 });
+
 
 export default app;

@@ -143,6 +143,45 @@ export const UserService = {
     };
   },
 
+  changeOwnPassword: async (
+    id: string,
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    if (!currentPassword || !newPassword) {
+      throw new Error("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới");
+    }
+
+    if (newPassword.length < 6) {
+      throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(id) },
+      select: { password: true },
+    });
+
+    if (!user) {
+      throw new Error("Không tìm thấy tài khoản");
+    }
+
+    const passwordMatches = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatches) {
+      throw new Error("Mật khẩu hiện tại không chính xác");
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      throw new Error("Mật khẩu mới phải khác mật khẩu hiện tại");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: BigInt(id) },
+      data: { password: hashedPassword },
+    });
+  },
+
   // 5. Cập nhật thông tin người dùng
 updateUser: async (
   id: string,
