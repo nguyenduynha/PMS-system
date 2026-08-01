@@ -25,6 +25,7 @@ export default function ProfilePage() {
     avatarUrl: user?.avatarUrl || "",
     currentPassword: "",
     newPassword: "",
+    confirmPassword: "",
   });
 
   // Cập nhật formData khi user từ context đã load xong
@@ -66,21 +67,54 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const wantsToChangePassword = Boolean(
+      formData.currentPassword || formData.newPassword || formData.confirmPassword
+    );
+
+    if (wantsToChangePassword) {
+      if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
+        toast.error("Vui lòng nhập đầy đủ ba trường mật khẩu");
+        return;
+      }
+      if (formData.newPassword.length < 6) {
+        toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+        return;
+      }
+      if (formData.newPassword !== formData.confirmPassword) {
+        toast.error("Xác nhận mật khẩu mới không khớp");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const res = await UserAPI.updateUser(user.id, {
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         avatarUrl: formData.avatarUrl,
-        password: formData.newPassword // Nếu có nhập mới thì mới đổi
       });
+
+      if (wantsToChangePassword) {
+        await UserAPI.changeOwnPassword({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+          confirmPassword: formData.confirmPassword,
+        });
+        setFormData((prev) => ({
+          ...prev,
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        }));
+      }
       
       if (res.data) {
         updateUser(res.data);
       }
-      toast.success("Cập nhật hồ sơ thành công!");
-    } catch (error) {
-      toast.error("Không thể cập nhật thông tin");
+      toast.success(wantsToChangePassword ? "Cập nhật hồ sơ và đổi mật khẩu thành công!" : "Cập nhật hồ sơ thành công!");
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể cập nhật thông tin");
     } finally {
       setLoading(false);
     }
@@ -154,13 +188,21 @@ export default function ProfilePage() {
                 <CardTitle className="text-amber-800 flex items-center gap-2">
                   <Lock className="size-5" /> Bảo mật & Mật khẩu
                 </CardTitle>
-                <CardDescription>Để trống nếu không muốn thay đổi mật khẩu</CardDescription>
+                <CardDescription>Nhập đủ ba trường nếu bạn muốn thay đổi mật khẩu</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Mật khẩu hiện tại</Label>
+                    <Input type="password" autoComplete="current-password" placeholder="Nhập mật khẩu hiện tại" value={formData.currentPassword} onChange={(e) => setFormData({...formData, currentPassword: e.target.value})} />
+                  </div>
                   <div className="space-y-2">
                     <Label>Mật khẩu mới</Label>
-                    <Input type="password" placeholder="Nhập mật khẩu mới" value={formData.newPassword} onChange={(e) => setFormData({...formData, newPassword: e.target.value})} />
+                    <Input type="password" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={formData.newPassword} onChange={(e) => setFormData({...formData, newPassword: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Xác nhận mật khẩu mới</Label>
+                    <Input type="password" autoComplete="new-password" placeholder="Nhập lại mật khẩu mới" value={formData.confirmPassword} onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})} />
                   </div>
                 </div>
               </CardContent>

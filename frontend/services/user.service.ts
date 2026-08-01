@@ -12,6 +12,20 @@ const getHeaders = () => {
 };
 
 export const UserAPI = {
+  changeOwnPassword: async (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => {
+    const res = await fetch(`${API_URL}/me/password`, {
+      method: "PUT",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Không thể đổi mật khẩu");
+    return result;
+  },
   // 1. Lấy danh sách người dùng
   getUsers: async () => {
     const res = await fetch(API_URL, {
