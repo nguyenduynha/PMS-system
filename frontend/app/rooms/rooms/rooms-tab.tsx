@@ -525,6 +525,18 @@ export function RoomsTab({
           </div>
 
           <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
+            {editingRoom && canDeleteRoom && (
+              <Button
+                variant="destructive"
+                className="mr-auto"
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  onDeleteRoom(editingRoom.id);
+                }}
+              >
+                <Trash2 className="mr-2 size-4" /> Xóa phòng
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Hủy</Button>
             <Button onClick={handleSave} className="px-8 bg-primary">Lưu</Button>
           </DialogFooter>

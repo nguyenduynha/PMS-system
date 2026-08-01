@@ -274,19 +274,39 @@ export const RoomService = {
   // 4. Xóa phòng
   deleteRoom: async (id: string) => {
     const cleanId = BigInt(id.replace("r-", ""));
-    
-    // Xóa tất cả các bản ghi bảo trì liên quan trước khi xóa phòng để tránh lỗi khóa ngoại
-    await prisma.maintenanceRecord.deleteMany({
-      where: { roomId: cleanId }
-    });
 
-    // Xóa tất cả các booking liên quan trước
-    await prisma.booking.deleteMany({
-      where: { roomId: cleanId }
-    });
+    // Một booking có thể có hóa đơn và các khoản thanh toán. Các bản ghi này
+    // phải được xóa trước booking, nếu không cơ sở dữ liệu sẽ chặn thao tác
+    // xóa phòng do ràng buộc khóa ngoại.
+    const deletedRoom = await prisma.$transaction(async (tx) => {
+      const bookings = await tx.booking.findMany({
+        where: { roomId: cleanId },
+        select: { id: true }
+      });
+      const bookingIds = bookings.map((booking) => booking.id);
 
-    const deletedRoom = await prisma.room.delete({
-      where: { id: cleanId }
+      await tx.maintenanceRecord.deleteMany({
+        where: { roomId: cleanId }
+      });
+
+      if (bookingIds.length > 0) {
+        await tx.payment.deleteMany({
+          where: { invoice: { bookingId: { in: bookingIds } } }
+        });
+        await tx.invoice.deleteMany({
+          where: { bookingId: { in: bookingIds } }
+        });
+        await tx.bookingService.deleteMany({
+          where: { bookingId: { in: bookingIds } }
+        });
+        await tx.booking.deleteMany({
+          where: { id: { in: bookingIds } }
+        });
+      }
+
+      return tx.room.delete({
+        where: { id: cleanId }
+      });
     });
 
     return {

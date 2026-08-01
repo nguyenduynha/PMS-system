@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net" modified="2026-07-30T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="overview" name="Use Case tổng quát">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="USE CASE TỔNG QUÁT – HỆ THỐNG QUẢN LÝ KHÁCH SẠN HOSPICORE" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#0F3B76;" vertex="1" parent="1">
+          <mxGeometry x="300" y="20" width="1000" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="system" value="HỆ THỐNG QUẢN LÝ KHÁCH SẠN" style="swimlane;html=1;startSize=36;horizontal=1;rounded=1;arcSize=8;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontStyle=1;fontColor=#1E3A8A;" vertex="1" parent="1">
+          <mxGeometry x="310" y="80" width="980" height="840" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="admin" value="Quản trị viên" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="170" width="80" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="manager" value="Quản lý" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="390" width="80" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="receptionist" value="Nhân viên lễ tân" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="230" width="90" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="housekeeping" value="Nhân viên buồng phòng" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="650" width="110" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="login" value="Đăng nhập" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#2563EB;fillColor=#DBEAFE;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="50" width="190" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="dashboard" value="Xem Dashboard" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#2563EB;fillColor=#DBEAFE;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="400" y="135" width="170" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="rooms" value="Quản lý phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="95" y="230" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="bookings" value="Quản lý đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="230" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="customers" value="Quản lý khách hàng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="690" y="230" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="services" value="Quản lý dịch vụ" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="95" y="340" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="invoices" value="Quản lý hóa đơn" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="340" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="inventory" value="Quản lý kho" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="690" y="340" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="finance" value="Quản lý thu – chi" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#D97706;fillColor=#FEF3C7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="95" y="455" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="reports" value="Xem báo cáo thống kê" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#D97706;fillColor=#FEF3C7;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="455" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="users" value="Quản lý nhân viên" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#7C3AED;fillColor=#EDE9FE;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="95" y="575" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="roles" value="Quản lý vai trò và phân quyền" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#7C3AED;fillColor=#EDE9FE;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="575" width="200" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="settings" value="Cấu hình khách sạn" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#7C3AED;fillColor=#EDE9FE;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="690" y="575" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="hkview" value="Xem phòng cần vệ sinh" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#DC2626;fillColor=#FEE2E2;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="690" y="685" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="hkupdate" value="Cập nhật trạng thái vệ sinh" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#DC2626;fillColor=#FEE2E2;fontSize=13;" vertex="1" parent="system">
+          <mxGeometry x="390" y="685" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="login"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="dashboard"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="rooms"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="finance"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="roles"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="1" source="admin" target="settings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="login"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="bookings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="invoices"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="finance"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="reports"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="1" source="manager" target="users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="login"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="rooms"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="bookings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="customers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="services"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="invoices"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#059669;" edge="1" parent="1" source="receptionist" target="inventory"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#DC2626;" edge="1" parent="1" source="housekeeping" target="login"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#DC2626;" edge="1" parent="1" source="housekeeping" target="hkview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#DC2626;" edge="1" parent="1" source="housekeeping" target="hkupdate"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="booking-detail" name="Use Case đặt phòng">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="b0"/>
+        <mxCell id="b1" parent="b0"/>
+        <mxCell id="btitle" value="USE CASE CHI TIẾT – QUẢN LÝ ĐẶT PHÒNG" style="text;html=1;align=center;fontSize=22;fontStyle=1;fontColor=#0F3B76;" vertex="1" parent="b1"><mxGeometry x="300" y="20" width="800" height="40" as="geometry"/></mxCell>
+        <mxCell id="bsystem" value="PHÂN HỆ QUẢN LÝ ĐẶT PHÒNG" style="swimlane;html=1;startSize=36;rounded=1;strokeWidth=2;strokeColor=#2563EB;fillColor=#EFF6FF;fontStyle=1;" vertex="1" parent="b1"><mxGeometry x="250" y="80" width="900" height="740" as="geometry"/></mxCell>
+        <mxCell id="bstaff" value="Nhân viên lễ tân" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="b1"><mxGeometry x="60" y="260" width="90" height="120" as="geometry"/></mxCell>
+        <mxCell id="bmanager" value="Quản lý" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="b1"><mxGeometry x="1230" y="260" width="80" height="120" as="geometry"/></mxCell>
+
+        <mxCell id="bview" value="Xem danh sách đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#2563EB;fillColor=#DBEAFE;" vertex="1" parent="bsystem"><mxGeometry x="70" y="70" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="bcreate" value="Tạo đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;" vertex="1" parent="bsystem"><mxGeometry x="350" y="70" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bsearch" value="Tra cứu khách hàng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#64748B;fillColor=#F8FAFC;" vertex="1" parent="bsystem"><mxGeometry x="650" y="60" width="180" height="55" as="geometry"/></mxCell>
+        <mxCell id="broom" value="Kiểm tra phòng trống" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#64748B;fillColor=#F8FAFC;" vertex="1" parent="bsystem"><mxGeometry x="650" y="135" width="180" height="55" as="geometry"/></mxCell>
+        <mxCell id="bupdate" value="Cập nhật đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#2563EB;fillColor=#DBEAFE;" vertex="1" parent="bsystem"><mxGeometry x="70" y="205" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="bcancel" value="Hủy đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#DC2626;fillColor=#FEE2E2;" vertex="1" parent="bsystem"><mxGeometry x="350" y="205" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bcheckin" value="Check-in" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;" vertex="1" parent="bsystem"><mxGeometry x="70" y="330" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="bcheckout" value="Check-out" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#16A34A;fillColor=#DCFCE7;" vertex="1" parent="bsystem"><mxGeometry x="350" y="330" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bextend" value="Gia hạn lưu trú" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#D97706;fillColor=#FEF3C7;" vertex="1" parent="bsystem"><mxGeometry x="70" y="455" width="190" height="60" as="geometry"/></mxCell>
+        <mxCell id="btransfer" value="Chuyển phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#D97706;fillColor=#FEF3C7;" vertex="1" parent="bsystem"><mxGeometry x="350" y="455" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bservice" value="Thêm dịch vụ" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#D97706;fillColor=#FEF3C7;" vertex="1" parent="bsystem"><mxGeometry x="650" y="455" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bvalidate" value="Kiểm tra thông tin đặt phòng" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#64748B;fillColor=#F8FAFC;" vertex="1" parent="bsystem"><mxGeometry x="650" y="295" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bcalculate" value="Tính tổng tiền" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#64748B;fillColor=#F8FAFC;" vertex="1" parent="bsystem"><mxGeometry x="650" y="560" width="180" height="55" as="geometry"/></mxCell>
+        <mxCell id="binvoice" value="Tạo hóa đơn" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#7C3AED;fillColor=#EDE9FE;" vertex="1" parent="bsystem"><mxGeometry x="350" y="590" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bpayment" value="Ghi nhận thanh toán" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#7C3AED;fillColor=#EDE9FE;" vertex="1" parent="bsystem"><mxGeometry x="70" y="590" width="190" height="60" as="geometry"/></mxCell>
+
+        <mxCell id="ba1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bcreate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bupdate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bcheckin"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bcheckout"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bextend"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="btransfer"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;" edge="1" parent="b1" source="bstaff" target="bservice"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="b1" source="bmanager" target="bview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ba10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#64748B;" edge="1" parent="b1" source="bmanager" target="bcancel"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bi1" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;" edge="1" parent="bsystem" source="bcreate" target="bsearch"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bi2" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;" edge="1" parent="bsystem" source="bcreate" target="broom"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bi3" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;" edge="1" parent="bsystem" source="bcheckin" target="bvalidate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bi4" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;" edge="1" parent="bsystem" source="bcheckout" target="bcalculate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bi5" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;" edge="1" parent="bsystem" source="bcheckout" target="binvoice"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="be1" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#7C3AED;" edge="1" parent="bsystem" source="bpayment" target="binvoice"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="be2" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#D97706;" edge="1" parent="bsystem" source="bextend" target="bupdate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="be3" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#D97706;" edge="1" parent="bsystem" source="btransfer" target="bupdate"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
