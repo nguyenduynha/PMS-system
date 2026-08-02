@@ -1,11 +1,12 @@
 import { API_BASE_URL } from "@/lib/app-config";
 
 const BASE_URL = `${API_BASE_URL}/dashboard`;
+const getHeaders = () => ({ Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""}` });
 
 export const DashboardAPI = {
   // Lấy số liệu thống kê tổng quan
   getStats: async () => {
-    const res = await fetch(`${BASE_URL}/stats`);
+    const res = await fetch(`${BASE_URL}/stats`, { headers: getHeaders() });
     if (!res.ok) {
       throw new Error("Không thể tải số liệu thống kê tổng quan");
     }
@@ -14,7 +15,7 @@ export const DashboardAPI = {
 
   // Lấy danh sách thông báo từ DB
   getNotifications: async () => {
-    const res = await fetch(`${BASE_URL}/notifications`);
+    const res = await fetch(`${BASE_URL}/notifications`, { headers: getHeaders() });
     if (!res.ok) {
       throw new Error("Không thể tải danh sách thông báo");
     }
@@ -23,7 +24,7 @@ export const DashboardAPI = {
 
   // Lấy dữ liệu báo cáo thống kê động từ DB
   getReportStats: async () => {
-    const res = await fetch(`${BASE_URL}/reports`);
+    const res = await fetch(`${BASE_URL}/reports`, { headers: getHeaders() });
     if (!res.ok) {
       throw new Error("Không thể tải báo cáo thống kê");
     }

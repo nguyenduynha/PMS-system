@@ -66,7 +66,7 @@ router.get("/types", authMiddleware, requirePermission("ROOM_VIEW"), RoomControl
  *     responses:
  *       200: { description: Cập nhật thành công }
  */
-router.put("/types/:id", authMiddleware, requirePermission("ROLE_ASSIGN_PERMISSION"), RoomController.updateRoomTypePricing);
+router.put("/types/:id", authMiddleware, requirePermission("ROOM_PRICE"), RoomController.updateRoomTypePricing);
 
 /**
  * @swagger

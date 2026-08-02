@@ -107,9 +107,8 @@ export default function EditUserPage() {
             status: userData.status || "ACTIVE",
             positionId: userData.positionId?.toString() || "",
             password: "", // Mật khẩu để trống khi edit, chỉ dùng khi admin muốn cấp lại
-            permissions: (Array.isArray(userData.permissions) && userData.permissions.length > 0)
-              ? userData.permissions
-              : getDefaultPermissions(userData.role || "STAFF"),
+            // [] is a valid, explicit permission selection.
+            permissions: Array.isArray(userData.permissions) ? userData.permissions : [],
           });
         }
       } catch (error) {

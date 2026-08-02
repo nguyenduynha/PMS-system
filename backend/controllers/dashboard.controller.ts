@@ -1,12 +1,23 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/auth.middleware";
 import { DashboardService } from "../services/dashboard.service";
 
 export const DashboardController = {
-  getStats: async (req: Request, res: Response) => {
+  getStats: async (req: AuthRequest, res: Response) => {
     try {
       const stats = await DashboardService.getStats();
       res.set("Cache-Control", "private, max-age=10, stale-while-revalidate=20");
-      res.json(stats);
+      const permissions = req.user?.permissions || [];
+      const canSeeRevenue = req.user?.role === "SUPERADMIN" || permissions.includes("DASHBOARD_REVENUE");
+      const canSeeRoomStats = req.user?.role === "SUPERADMIN" || permissions.includes("DASHBOARD_ROOM_STATS");
+      res.json({
+        ...stats,
+        ...(!canSeeRevenue ? { todayRevenue: null } : {}),
+        ...(!canSeeRoomStats ? {
+          totalRooms: null, availableRooms: null, occupiedRooms: null,
+          dirtyRooms: null, maintenanceRooms: null, occupancyRate: null,
+        } : {}),
+      });
     } catch (error: any) {
       res.status(500).json({ message: "Lỗi server khi lấy số liệu thống kê: " + error.message });
     }

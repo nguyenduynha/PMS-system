@@ -19,6 +19,7 @@ import { BookingAPI } from "@/services/booking.service";
 import { DashboardAPI } from "@/services/dashboard.service";
 import type { BookingStatus, BookingWithRoom } from "@/lib/types";
 import { toast } from "sonner";
+import { hasPermission, useAuth } from "@/contexts/auth-context";
 
 interface DashboardStats {
   totalRooms: number;
@@ -64,6 +65,9 @@ const nightsBetween = (from: string, to: string) =>
   Math.max(1, Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000));
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const canViewBookings = hasPermission(user, "BOOKING_VIEW");
+  const canViewChart = hasPermission(user, "DASHBOARD_CHART") && hasPermission(user, "REPORT_VIEW");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [report, setReport] = useState<ReportData | null>(null);
   const [bookings, setBookings] = useState<BookingWithRoom[]>([]);
@@ -73,8 +77,8 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([
       DashboardAPI.getStats(),
-      DashboardAPI.getReportStats().catch(() => null),
-      BookingAPI.getBookings({ limit: 50 }),
+      canViewChart ? DashboardAPI.getReportStats().catch(() => null) : Promise.resolve(null),
+      canViewBookings ? BookingAPI.getBookings({ limit: 50 }) : Promise.resolve([]),
     ])
       .then(([statsData, reportData, bookingsData]) => {
         setStats(statsData);
@@ -83,7 +87,7 @@ export default function DashboardPage() {
       })
       .catch(() => toast.error("Không thể tải dữ liệu tổng quan"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canViewBookings, canViewChart]);
 
   const chartData = useMemo(() => {
     const days = report?.revenueDaily?.slice(-18) ?? [];

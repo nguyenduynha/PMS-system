@@ -63,6 +63,9 @@ export default function RoomsPage() {
   const canCheckOut = hasPermission(user, "BOOKING_CHECK_OUT");
   const canCancelBooking = hasPermission(user, "BOOKING_CANCEL");
   const canUpdateBooking = hasPermission(user, "BOOKING_UPDATE");
+  const canViewMaintenance = hasPermission(user, "MAINTENANCE_VIEW");
+  const canCreateMaintenance = hasPermission(user, "MAINTENANCE_CREATE");
+  const canUpdateMaintenance = hasPermission(user, "MAINTENANCE_UPDATE");
   const [rooms, setRooms] = useState<RoomWithType[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecordWithDetails[]>([]);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
@@ -169,7 +172,7 @@ export default function RoomsPage() {
     try {
       const [roomsData, maintenanceData, roomTypesData] = await Promise.all([
         RoomAPI.getRooms(),
-        MaintenanceAPI.getMaintenanceRecords(),
+        canViewMaintenance ? MaintenanceAPI.getMaintenanceRecords() : Promise.resolve([]),
         RoomAPI.getRoomTypes().catch(() => defaultRoomTypes)
       ]);
       setRooms(roomsData);
@@ -917,7 +920,7 @@ export default function RoomsPage() {
             <Tabs defaultValue="rooms" className="space-y-6">
               <TabsList className="grid w-full max-w-md grid-cols-3">
                 <TabsTrigger value="rooms" className="gap-2"><DoorOpen className="size-4" /> Danh sách phòng</TabsTrigger>
-                <TabsTrigger value="maintenance" className="gap-2"><Wrench className="size-4" /> Bảo trì</TabsTrigger>
+                 {canViewMaintenance && <TabsTrigger value="maintenance" className="gap-2"><Wrench className="size-4" /> Bảo trì</TabsTrigger>}
                 <TabsTrigger value="amenities" className="gap-2"><Wifi className="size-4" /> Tiện nghi</TabsTrigger>
               </TabsList>
 
@@ -949,15 +952,15 @@ export default function RoomsPage() {
                 />
               </TabsContent>
 
-              <TabsContent value="maintenance">
-                <MaintenanceTab 
+              {canViewMaintenance && <TabsContent value="maintenance">
+                 <MaintenanceTab
                   rooms={rooms}
                   maintenanceRecords={maintenanceRecords}
-                  onAddMaintenance={handleAddMaintenance}
-                  onUpdateStatus={handleUpdateMaintenanceStatus}
+                  onAddMaintenance={canCreateMaintenance ? handleAddMaintenance : () => toast.error("Bạn không có quyền tạo bảo trì")}
+                  onUpdateStatus={canUpdateMaintenance ? handleUpdateMaintenanceStatus : () => toast.error("Bạn không có quyền cập nhật bảo trì")}
                   formatCurrency={formatCurrency}
                 />
-              </TabsContent>
+              </TabsContent>}
 
               <TabsContent value="amenities">
                 <AmenitiesTab 
@@ -2069,7 +2072,7 @@ export default function RoomsPage() {
                             setSubmittingMaintenanceUpdate(false);
                           }
                         }}
-                        disabled={submittingMaintenanceUpdate}
+                        disabled={submittingMaintenanceUpdate || !canUpdateMaintenance}
                       >
                         <SelectTrigger className="w-[180px] h-8 text-xs font-semibold">
                           <SelectValue placeholder="Chọn trạng thái" />

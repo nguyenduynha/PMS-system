@@ -55,7 +55,9 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     req.user = {
       id: decoded.id,
       role: dbUser.role,
-      permissions: directPermissions.length > 0 ? directPermissions : rolePermissions.length > 0 ? rolePermissions : getDefaultPermissions(dbUser.role),
+      // User snapshots are synchronized when a role is updated. If an older
+      // account has no snapshot yet, use its persisted role permissions.
+      permissions: directPermissions.length > 0 ? directPermissions : rolePermissions,
     };
     next();
   } catch (error) {

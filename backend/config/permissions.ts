@@ -18,6 +18,9 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { id: "ROOM_STATUS", module: "ROOM", action: "STATUS", name: "Cập nhật trạng thái phòng", description: "Đổi trạng thái sử dụng và dọn phòng" },
   { id: "HOUSEKEEPING_VIEW", module: "HOUSEKEEPING", action: "VIEW", name: "Xem Buồng phòng", description: "Xem danh sách công việc vệ sinh phòng" },
   { id: "HOUSEKEEPING_UPDATE", module: "HOUSEKEEPING", action: "UPDATE", name: "Cập nhật vệ sinh", description: "Bắt đầu và hoàn tất dọn phòng" },
+  { id: "MAINTENANCE_VIEW", module: "MAINTENANCE", action: "VIEW", name: "Xem bảo trì", description: "Xem danh sách yêu cầu bảo trì" },
+  { id: "MAINTENANCE_CREATE", module: "MAINTENANCE", action: "CREATE", name: "Tạo bảo trì", description: "Tạo yêu cầu bảo trì mới" },
+  { id: "MAINTENANCE_UPDATE", module: "MAINTENANCE", action: "UPDATE", name: "Cập nhật bảo trì", description: "Cập nhật và hoàn tất bảo trì" },
   { id: "ROOM_PRICE", module: "ROOM", action: "PRICE", name: "Cập nhật giá phòng", description: "Thay đổi giá phòng và loại phòng" },
   { id: "ROOM_TRANSFER", module: "ROOM", action: "TRANSFER", name: "Chuyển phòng", description: "Chuyển khách sang phòng khác" },
   { id: "ROOM_LOCK", module: "ROOM", action: "LOCK", name: "Khóa/Mở phòng", description: "Khóa hoặc mở phòng" },
@@ -75,6 +78,7 @@ const LEGACY_MODULES: Record<string, string[]> = {
   DASHBOARD: ["DASHBOARD"],
   ROOMS: ["ROOM"],
   HOUSEKEEPING: ["HOUSEKEEPING"],
+  MAINTENANCE: ["MAINTENANCE"],
   BOOKINGS: ["BOOKING"],
   CUSTOMERS: ["CUSTOMER"],
   SERVICES: ["SERVICE"],
@@ -111,5 +115,6 @@ export function getDefaultPermissions(role: string): string[] {
     ];
   }
   if (normalizedRole === "HOUSEKEEPING") return ["HOUSEKEEPING_VIEW", "HOUSEKEEPING_UPDATE"];
+  if (normalizedRole === "MAINTENANCE") return ["ROOM_VIEW", "MAINTENANCE_VIEW", "MAINTENANCE_CREATE", "MAINTENANCE_UPDATE"];
   return [];
 }

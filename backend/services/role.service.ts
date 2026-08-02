@@ -29,7 +29,7 @@ export const RoleService = {
       ),
     );
 
-    for (const code of ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"]) {
+    for (const code of ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF", "HOUSEKEEPING", "MAINTENANCE"]) {
       const role = await prisma.role.upsert({
         where: { code },
         update: { name: code, isSystem: true },
@@ -92,7 +92,7 @@ export const RoleService = {
     const permissionIds = validatePermissionIds(data.permissions ?? data.permissionIds);
     const role = await prisma.$transaction(async (transaction) => {
       await transaction.rolePermission.deleteMany({ where: { roleId: existing.id } });
-      return transaction.role.update({
+      const updatedRole = await transaction.role.update({
         where: { id: existing.id },
         data: {
           name: data.name ? String(data.name).trim() : existing.name,
@@ -101,6 +101,14 @@ export const RoleService = {
         },
         include: { permissions: true },
       });
+      // Users created with a role keep a permission snapshot for fast and
+      // unambiguous authorization. Refresh that snapshot whenever the role is
+      // changed so active sessions receive the new permissions immediately.
+      await transaction.user.updateMany({
+        where: { roleId: existing.id },
+        data: { permissions: permissionIds },
+      });
+      return updatedRole;
     });
     const { permissions, ...safeRole } = role;
     return { ...safeRole, id: role.id.toString(), permissionIds: permissions.map((item) => item.permissionId) };

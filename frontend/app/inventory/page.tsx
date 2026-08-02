@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { InventoryAPI } from "@/services/inventory.service";
-import { useAuth } from "@/contexts/auth-context";
+import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import {
   Boxes,
@@ -68,7 +68,10 @@ function formatDate(dateString: string) {
 
 export default function InventoryPage() {
   const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+  const canCreateItem = hasPermission(currentUser, "INVENTORY_CREATE");
+  const canUpdateItem = hasPermission(currentUser, "INVENTORY_UPDATE");
+  const canDeleteItem = hasPermission(currentUser, "INVENTORY_DELETE");
+  const canTransactStock = hasPermission(currentUser, "INVENTORY_TRANSACTION");
 
   // State Tabs
   const [activeTab, setActiveTab] = useState<string>("stock");
@@ -173,13 +176,14 @@ export default function InventoryPage() {
 
   // Khởi động tải dữ liệu
   useEffect(() => {
-    if (activeTab === "stock") {
+    if (activeTab === "stock" || !canTransactStock) {
+      if (activeTab !== "stock") setActiveTab("stock");
       fetchItems();
     } else {
       fetchItems(); // Tải items để làm dropdown chọn trong form giao dịch
       fetchTransactions();
     }
-  }, [activeTab, fetchItems, fetchTransactions]);
+  }, [activeTab, canTransactStock, fetchItems, fetchTransactions]);
 
   // Xử lý tạo/sửa vật tư Submit
   const handleItemSubmit = async (e: React.FormEvent) => {
@@ -237,7 +241,7 @@ export default function InventoryPage() {
 
   // Xóa vật tư (Chỉ Admin)
   const handleDeleteItem = async (id: string, name: string) => {
-    if (!isAdmin) return;
+    if (!canDeleteItem) return;
     if (confirm(`Bạn có chắc chắn muốn xóa vật tư "${name}" không? Hành động này không thể hoàn tác.`)) {
       try {
         await InventoryAPI.deleteItem(id);
@@ -265,6 +269,7 @@ export default function InventoryPage() {
   // Xử lý tạo phiếu Nhập kho Submit
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canTransactStock) return toast.error("Bạn không có quyền xuất/nhập kho");
     if (!importItemId || !importQuantity || !importPrice) {
       return toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc (*)");
     }
@@ -317,6 +322,7 @@ export default function InventoryPage() {
   // Xử lý tạo phiếu Xuất kho Submit
   const handleExportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canTransactStock) return toast.error("Bạn không có quyền xuất/nhập kho");
     if (!exportItemId || !exportQuantity) {
       return toast.error("Vui lòng chọn vật tư và số lượng xuất (*)");
     }
@@ -432,13 +438,15 @@ export default function InventoryPage() {
                   <ClipboardList className="size-4" />
                   Tổng hợp tồn kho
                 </TabsTrigger>
-                <TabsTrigger value="history" className="flex items-center gap-2">
-                  <FileSpreadsheet className="size-4" />
-                  Lịch sử xuất nhập
-                </TabsTrigger>
+                {canTransactStock && (
+                  <TabsTrigger value="history" className="flex items-center gap-2">
+                    <FileSpreadsheet className="size-4" />
+                    Lịch sử xuất nhập
+                  </TabsTrigger>
+                )}
               </TabsList>
 
-              <div className="flex items-center gap-2">
+              {canTransactStock && <div className="flex items-center gap-2">
                 <Button 
                   onClick={() => setShowImportModal(true)} 
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2"
@@ -453,7 +461,7 @@ export default function InventoryPage() {
                   <ArrowUpFromLine className="size-4" />
                   Xuất kho
                 </Button>
-              </div>
+              </div>}
             </div>
 
             {/* TAB 1: TỔNG HỢP TỒN KHO */}
@@ -485,12 +493,12 @@ export default function InventoryPage() {
                     </SelectContent>
                   </Select>
 
-                  <Button 
+                  {canCreateItem && <Button
                     onClick={() => setShowAddModal(true)} 
                     className="bg-primary hover:bg-primary/90 font-semibold"
                   >
                     <Plus className="size-4 mr-1.5" /> Thêm vật tư mới
-                  </Button>
+                  </Button>}
                 </div>
               </div>
 
@@ -579,15 +587,15 @@ export default function InventoryPage() {
                               </td>
                               <td className="p-4 text-center">
                                 <div className="flex items-center justify-center gap-1.5">
-                                  <Button
+                                  {canUpdateItem && <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleEditClick(item)}
                                     className="size-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50"
                                   >
                                     <Edit2 className="size-4" />
-                                  </Button>
-                                  {isAdmin && (
+                                  </Button>}
+                                  {canDeleteItem && (
                                     <Button
                                       variant="ghost"
                                       size="icon"

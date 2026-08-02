@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { FinanceAPI } from "@/services/finance.service";
 import { HotelProfileAPI } from "@/services/hotel-profile.service";
-import { useAuth } from "@/contexts/auth-context";
+import { hasPermission, useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import {
   Plus,
@@ -65,7 +65,8 @@ function getTypeIcon(type: string) {
 
 export default function FinancePage() {
   const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+  const canCreateFinance = hasPermission(currentUser, "FINANCE_CREATE");
+  const canDeleteFinance = hasPermission(currentUser, "FINANCE_DELETE");
 
   // Data State
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -140,6 +141,7 @@ export default function FinancePage() {
   // Handle Add Transaction Submit
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateFinance) return toast.error("Bạn không có quyền thêm giao dịch thu chi");
     if (!formAmount || isNaN(Number(formAmount)) || Number(formAmount) <= 0) {
       return toast.error("Vui lòng nhập số tiền hợp lệ và lớn hơn 0");
     }
@@ -173,7 +175,7 @@ export default function FinancePage() {
 
   // Handle Delete Transaction (Admin Only)
   const handleDeleteTx = async (id: string, code: string) => {
-    if (!isAdmin) return;
+    if (!canDeleteFinance) return;
     if (confirm(`Bạn có chắc chắn muốn xóa giao dịch "${code}" không? Hành động này sẽ cập nhật lại dòng tiền hệ thống.`)) {
       try {
         await FinanceAPI.deleteTransaction(id);
@@ -313,10 +315,10 @@ export default function FinancePage() {
                 {exporting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-4" />}
                 Xuất Excel
               </Button>
-              <Button onClick={() => setShowAddModal(true)}>
+              {canCreateFinance && <Button onClick={() => setShowAddModal(true)}>
                 <Plus className="mr-2 size-4" />
                 Thêm giao dịch mới
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -562,7 +564,7 @@ export default function FinancePage() {
                                     Xem
                                   </Button>
                                   
-                                  {isAdmin && (
+                                  {canDeleteFinance && (
                                     <Button 
                                       variant="outline" 
                                       size="sm" 
@@ -589,7 +591,7 @@ export default function FinancePage() {
       </div>
 
       {/* MODAL 1: THÊM GIAO DỊCH MỚI */}
-      {showAddModal && (
+      {canCreateFinance && showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg rounded-xl border bg-background p-6 shadow-lg animate-in zoom-in-95 duration-200">
             <button 

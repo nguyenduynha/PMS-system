@@ -53,7 +53,7 @@ export const UserService = {
         ...safeUser,
         id: user.id.toString(),
         roleId: user.roleRecord?.id.toString() || null,
-        permissions: directPermissions.length > 0 ? directPermissions : rolePermissions.length > 0 ? rolePermissions : getDefaultPermissions(user.role),
+        permissions: directPermissions.length > 0 ? directPermissions : rolePermissions,
       };
     });
   },
@@ -139,7 +139,7 @@ export const UserService = {
       ...safeUser,
       id: user.id.toString(),
       roleId: user.roleId?.toString() || null,
-      permissions: directPermissions.length > 0 ? directPermissions : rolePermissions.length > 0 ? rolePermissions : getDefaultPermissions(user.role),
+      permissions: directPermissions.length > 0 ? directPermissions : rolePermissions,
     };
   },
 
@@ -443,7 +443,7 @@ updateUser: async (
           ...userWithoutPass,
           id: dbAdmin.id.toString(),
           roleId: dbAdmin.roleId?.toString() || null,
-          permissions: directPermissions.length > 0 ? directPermissions : rolePermissions.length > 0 ? rolePermissions : getDefaultPermissions(dbAdmin.role),
+          permissions: directPermissions.length > 0 ? directPermissions : rolePermissions,
         },
         token
       };
@@ -498,7 +498,7 @@ updateUser: async (
         ...userWithoutPass,
         id: user.id.toString(),
         roleId: user.roleId?.toString() || null,
-        permissions: directPermissions.length > 0 ? directPermissions : rolePermissions.length > 0 ? rolePermissions : getDefaultPermissions(user.role),
+        permissions: directPermissions.length > 0 ? directPermissions : rolePermissions,
       },
       token 
     };

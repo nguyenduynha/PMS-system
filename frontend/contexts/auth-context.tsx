@@ -3,13 +3,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { UserAPI } from "@/services/user.service";
-import { getDefaultPermissions, normalizePermissions } from "@/lib/permissions";
+import { normalizePermissions } from "@/lib/permissions";
 
 export function hasPermission(user: any, permissionKey: string): boolean {
   if (!user) return false;
   if (user.role === "SUPERADMIN") return true;
-  const directPermissions = normalizePermissions(user.permissions);
-  const effectivePermissions = directPermissions.length > 0 ? directPermissions : getDefaultPermissions(user.role);
+  // `permissions` returned by the API is the effective permission set.
+  // An empty array intentionally means that the user has no permissions.
+  const effectivePermissions = normalizePermissions(user.permissions);
   const requestedPermissions = normalizePermissions([permissionKey]);
   return requestedPermissions.length > 0
     ? requestedPermissions.some((permission) => effectivePermissions.includes(permission))
@@ -35,7 +36,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storedUser && token) {
         const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        let authenticatedUser = parsedUser;
+
+        // Always refresh the current user before rendering or checking access.
+        // This prevents stale permissions from localStorage being used after an
+        // administrator changes a user's permissions.
+        try {
+          if (parsedUser.id !== "0" && parsedUser.id !== "admin-env") {
+            authenticatedUser = await UserAPI.getUserById(parsedUser.id);
+
+            if (authenticatedUser.status === "LOCKED" || authenticatedUser.status === "INACTIVE") {
+              toast.error("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động!");
+              localStorage.clear();
+              setUser(null);
+              router.replace("/login");
+              return;
+            }
+
+            localStorage.setItem("user", JSON.stringify(authenticatedUser));
+          }
+          setUser(authenticatedUser);
+        } catch (error: any) {
+          console.error("Lỗi kiểm tra xác thực:", error);
+          localStorage.clear();
+          setUser(null);
+          router.replace("/login");
+          return;
+        }
 
         // --- ROUTING GUARD ---
         let pageKey = "";
@@ -49,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         else if (pathname.startsWith("/invoices")) pageKey = "INVOICE_VIEW";
         else if (pathname.startsWith("/inventory")) pageKey = "INVENTORY_VIEW";
 
-        if (pageKey && !hasPermission(parsedUser, pageKey)) {
+        if (pageKey && !hasPermission(authenticatedUser, pageKey)) {
           toast.error("Bạn không có quyền truy cập chức năng này!");
           router.replace("/dashboard");
           return;
@@ -60,33 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           router.replace("/dashboard");
         }
 
-        // --- KIỂM TRA TRẠNG THÁI TÀI KHOẢN TỪ BACKEND ---
-        try {
-          // Bỏ qua kiểm tra đối với tài khoản admin ảo hệ thống (khi DB offline)
-          if (parsedUser.id !== "0" && parsedUser.id !== "admin-env") {
-            const latestUser = await UserAPI.getUserById(parsedUser.id);
-            
-            // Nếu phát hiện trạng thái không hợp lệ trong dữ liệu mới nhất
-            if (latestUser.status === "LOCKED" || latestUser.status === "INACTIVE") {
-              toast.error("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động!");
-              localStorage.clear();
-              setUser(null);
-              router.replace("/login");
-              return;
-            }
-
-            // Cập nhật lại thông tin user mới nhất vào state & localStorage
-            setUser(latestUser);
-            localStorage.setItem("user", JSON.stringify(latestUser));
-          }
-        } catch (error: any) {
-          // Nếu backend trả về 401 hoặc lỗi (báo hiệu tài khoản không còn hợp lệ) -> Đăng xuất ngay
-          console.error("Lỗi kiểm tra xác thực:", error);
-          localStorage.clear();
-          setUser(null);
-          router.replace("/login");
-          return;
-        }
       } else {
         // Nếu CHƯA login và đang vào trang bảo mật -> đá ra login ngay
         if (!isPublicRoute) {
