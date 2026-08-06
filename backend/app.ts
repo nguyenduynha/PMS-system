@@ -18,33 +18,6 @@ import swaggerJsdoc from "swagger-jsdoc";
 
 const app: Application = express();
 
-const swaggerDocs = swaggerJsdoc({
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Hotel Management API",
-      version: "1.0.0",
-      description: "API documentation for the Hotel Management system",
-    },
-    servers: [
-      {
-        url: "http://localhost:5000",
-        description: "Local development server",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-        },
-      },
-    },
-  },
-  apis: ["./routes/*.ts"],
-});
-
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = [
@@ -87,11 +60,29 @@ app.use(
 );
 
 app.use("/public", express.static("public"));
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-app.get("/api-docs-json", (_req, res) => {
-  res.status(200).json(swaggerDocs);
-});
 
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "PMS API Documentation",
+      version: "1.0.0",
+      description: "Danh sách tất cả các đường link API của hệ thống Quản lý Khách sạn",
+    },
+    servers: [
+      {
+        url: "http://localhost:5000", // Kiểm tra lại port server của bạn
+      },
+    ],
+  },
+  // Quét tất cả file trong thư mục routes để tìm link
+  apis: ["./routes/*.ts", "./backend/routes/*.ts"], 
+};
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+app.get("/api-docs-json", (_req, res) => {
+  res.json(swaggerDocs);
+});
 // API routes
 app.use("/api/users", userRoutes);
 app.use("/api/rooms", roomRoutes);
@@ -106,6 +97,10 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/hotel-profile", hotelProfileRoutes);
 
+app.get("/api-docs-json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerDocs);
+});
 // Health check
 app.get("/", (_req, res) => {
   res.status(200).json({
@@ -128,6 +123,13 @@ app.use((_req, res) => {
     message: "API route không tồn tại",
   });
 });
+
+// Thêm đoạn này để link /api-docs-json hoạt động
+app.get("/api-docs-json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerDocs);
+});
+
 
 
 export default app;

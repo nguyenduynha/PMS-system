@@ -383,9 +383,9 @@ export default function BookingsPage() {
 
   const handleCheckoutClick = async (booking: any) => {
     let invoice = booking.invoice;
-    if (!invoice) {
-      setLoading(true);
-      try {
+    setLoading(true);
+    try {
+      if (!invoice) {
         const res = await InvoiceAPI.createInvoice({
           bookingId: booking.id,
           status: "UNPAID",
@@ -393,13 +393,16 @@ export default function BookingsPage() {
           processedBy: user?.fullName || "Hệ thống"
         });
         invoice = res.data;
-      } catch (error: any) {
-        toast.error(error.message || "Không thể tạo hóa đơn cho phòng này");
-        setLoading(false);
-        return;
-      } finally {
-        setLoading(false);
+      } else {
+        // Invoice trong danh sách booking là bản rút gọn, chưa có chi tiết dịch vụ.
+        const res = await InvoiceAPI.getInvoiceById(invoice.id);
+        invoice = res.data;
       }
+    } catch (error: any) {
+      toast.error(error.message || "Không thể tải hóa đơn cho phòng này");
+      return;
+    } finally {
+      setLoading(false);
     }
 
     const totalAmt = Number(invoice.totalAmount);
@@ -1093,6 +1096,45 @@ export default function BookingsPage() {
 
               {checkoutInvoice && (
                 <div className="space-y-4 py-4 text-sm">
+                  {(() => {
+                    const bookingServices = checkoutInvoice.booking?.bookingServices || selectedBooking?.bookingServices || [];
+                    const servicesCharge = bookingServices.reduce(
+                      (sum: number, item: any) => sum + Number(item.totalAmount || 0),
+                      0
+                    );
+                    const roomCharge = Math.max(0, Number(checkoutInvoice.subTotal || 0) - servicesCharge);
+
+                    return (
+                      <div className="border rounded-xl overflow-hidden">
+                        <div className="bg-muted/50 px-4 py-2.5 font-semibold">Chi tiết tiền phòng và dịch vụ</div>
+                        <div className="divide-y">
+                          <div className="flex justify-between gap-4 px-4 py-2.5">
+                            <span>Tiền phòng</span>
+                            <span className="font-medium">{formatCurrency(roomCharge)}</span>
+                          </div>
+                          {bookingServices.map((item: any) => (
+                            <div key={item.id} className="flex justify-between gap-4 px-4 py-2.5">
+                              <span>
+                                {item.service?.name || item.name || "Dịch vụ phòng"}
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  x{item.quantity} {item.service?.unit || item.unit || "lượt"}
+                                </span>
+                              </span>
+                              <span className="font-medium">{formatCurrency(Number(item.totalAmount))}</span>
+                            </div>
+                          ))}
+                          {bookingServices.length === 0 && (
+                            <div className="px-4 py-2.5 text-muted-foreground">Chưa sử dụng dịch vụ bổ sung</div>
+                          )}
+                          <div className="flex justify-between gap-4 bg-muted/30 px-4 py-2.5 font-semibold">
+                            <span>Tổng tiền dịch vụ</span>
+                            <span>{formatCurrency(servicesCharge)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Tóm tắt hóa đơn */}
                   <div className="border rounded-xl p-4 bg-muted/30 space-y-2.5">
                     <div className="flex justify-between">
