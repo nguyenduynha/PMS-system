@@ -395,8 +395,11 @@ export default function BookingsPage() {
         invoice = res.data;
       } else {
         // Invoice trong danh sách booking là bản rút gọn, chưa có chi tiết dịch vụ.
-        const res = await InvoiceAPI.getInvoiceById(invoice.id);
-        invoice = res.data;
+        invoice = await InvoiceAPI.getInvoiceById(invoice.id);
+      }
+
+      if (!invoice || invoice.totalAmount == null) {
+        throw new Error("Dữ liệu hóa đơn không hợp lệ");
       }
     } catch (error: any) {
       toast.error(error.message || "Không thể tải hóa đơn cho phòng này");
