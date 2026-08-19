@@ -118,6 +118,8 @@ Tạo `backend/.env`:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 DIRECT_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 JWT_SECRET="replace-with-a-long-random-secret"
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_UPLOAD_PRESET="your-unsigned-upload-preset"
 PORT=5000
 FRONTEND_URL="http://localhost:3000"
 NODE_ENV="development"

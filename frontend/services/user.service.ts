@@ -76,18 +76,31 @@ export const UserAPI = {
     return res.json();
   },
 
-  // 4.5. Upload ảnh đại diện lên server local
+  // 4.5. Upload ảnh đại diện lên Cloudinary (unsigned upload preset)
   uploadAvatar: async (base64Image: string) => {
-    const res = await fetch(`${API_URL}/upload-avatar`, {
+    const config = await UserAPI.getCloudinaryConfig();
+    const formData = new FormData();
+    formData.append("file", base64Image);
+    formData.append("upload_preset", config.uploadPreset);
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`,
+      {
       method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({ image: base64Image })
-    });
+        body: formData,
+      },
+    );
     const result = await res.json();
     if (!res.ok) {
-      throw new Error(result.message || "Không thể upload ảnh đại diện");
+      throw new Error(
+        result?.error?.message || "Không thể upload ảnh đại diện lên Cloudinary",
+      );
     }
-    return result;
+    return {
+      message: "Upload ảnh thành công",
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
   },
 
   // 5. Lấy thông tin người dùng theo ID

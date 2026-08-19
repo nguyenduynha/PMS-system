@@ -94,6 +94,10 @@ router.get("/", requirePermission("USER_VIEW"), UserController.getUsers);
  */
 router.put("/me/password", UserController.changeOwnPassword);
 
+// Route tĩnh phải được khai báo trước /:id để Express không hiểu
+// "cloudinary-config" là ID người dùng.
+router.get("/cloudinary-config", UserController.getCloudinaryConfig);
+
 /**
  * @swagger
  * /api/users/{id}:

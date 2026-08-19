@@ -43,25 +43,36 @@ export default function ProfilePage() {
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh PNG, JPG, GIF hoặc WEBP");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước ảnh không được vượt quá 5 MB");
+      e.target.value = "";
+      return;
+    }
+
     setUploading(true);
     try {
-      const config = await UserAPI.getCloudinaryConfig();
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", config.uploadPreset);
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
-        method: "POST",
-        body: data,
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Không thể đọc file ảnh"));
+        reader.readAsDataURL(file);
       });
-      const fileData = await res.json();
-      if (fileData.secure_url) {
-        setFormData({ ...formData, avatarUrl: fileData.secure_url });
-        toast.success("Cập nhật ảnh đại diện tạm thời, nhấn Lưu để hoàn tất");
-      }
-    } catch (error) {
-      toast.error("Lỗi tải ảnh");
+
+      const response = await UserAPI.uploadAvatar(base64Data);
+      setFormData((prev) => ({ ...prev, avatarUrl: response.url }));
+      toast.success("Cập nhật ảnh đại diện tạm thời, nhấn Lưu để hoàn tất");
+    } catch (error: any) {
+      toast.error(error?.message || "Lỗi tải ảnh");
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
 
